@@ -34,6 +34,22 @@ function saveSession(session: Session | null) {
 
 export function clearStoredSession() { saveSession(null); }
 
+export type PasswordRecoveryLink = { accessToken: string | null; error: string | null };
+
+export function readPasswordRecoveryLink(): PasswordRecoveryLink | null {
+  const query = new URLSearchParams(window.location.search);
+  const fragment = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const type = fragment.get("type") || query.get("type");
+  const accessToken = fragment.get("access_token") || query.get("access_token");
+  const error = fragment.get("error_description") || query.get("error_description") || fragment.get("error") || query.get("error");
+  if (type !== "recovery" && !error) return null;
+
+  return {
+    accessToken,
+    error: error || !accessToken ? "This recovery link is invalid or expired. Request a new one." : null,
+  };
+}
+
 async function authRequest(path: string, body?: unknown, accessToken?: string) {
   const { supabaseUrl, publishableKey } = configuration();
   const response = await fetch(`${supabaseUrl}/auth/v1/${path}`, {
@@ -59,6 +75,22 @@ export async function signIn(email: string, password: string) {
   if (!session) throw new Error("Sign in did not return a session. Verify your email, then try again.");
   saveSession(session);
   return session;
+}
+
+export async function requestPasswordReset(email: string) {
+  await authRequest("recover", { email });
+}
+
+export async function updatePasswordFromRecovery(accessToken: string, password: string) {
+  const { supabaseUrl, publishableKey } = configuration();
+  const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    method: "PUT",
+    headers: { apikey: publishableKey, Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ password }),
+    cache: "no-store",
+  });
+  const data = await response.json().catch(() => ({})) as Record<string, unknown>;
+  if (!response.ok) throw new Error(typeof data.msg === "string" ? data.msg : typeof data.message === "string" ? data.message : typeof data.error_description === "string" ? data.error_description : "Supabase could not update the password.");
 }
 
 export async function signOut() {

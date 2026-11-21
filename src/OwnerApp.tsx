@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import QRCode from "qrcode";
-import { clearStoredSession, readSession, signIn, signOut, supabaseRest, supabaseRpc } from "./lib/supabase-browser";
+import { clearStoredSession, readPasswordRecoveryLink, readSession, requestPasswordReset, signIn, signOut, supabaseRest, supabaseRpc, updatePasswordFromRecovery } from "./lib/supabase-browser";
 import "./owner.css";
 
 type AnswerType = "rating" | "choice" | "text";
@@ -34,7 +34,13 @@ function normalizeReviewUrl(value: string): string | null {
 
 export default function OwnerApp() {
   const [session, setSession] = useState<ReturnType<typeof signIn> extends Promise<infer T> ? T | null : never>(null);
+  const [recoveryLink] = useState(() => readPasswordRecoveryLink());
+  const [recoveryMode, setRecoveryMode] = useState(Boolean(recoveryLink));
+  const [recoveryToken, setRecoveryToken] = useState(recoveryLink?.accessToken || "");
+  const [recoveryIssue, setRecoveryIssue] = useState(recoveryLink?.error || "");
   const [password, setPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [selectedId, setSelectedId] = useState("");
@@ -53,7 +59,10 @@ export default function OwnerApp() {
   const activatingDraftsRef = useRef(new Set<string>());
   const reviewUrl = useMemo(() => qrToken ? `${window.location.origin}/r/${qrToken}` : "", [qrToken]);
 
-  useEffect(() => { clearStoredSession(); }, []);
+  useEffect(() => {
+    clearStoredSession();
+    if (recoveryLink) window.history.replaceState(null, "", window.location.pathname);
+  }, [recoveryLink]);
 
   const activateWorkspace = useCallback((workspace: Workspace | undefined) => {
     if (!workspace) {
@@ -171,6 +180,30 @@ export default function OwnerApp() {
     finally { setBusy(false); }
   }
 
+  async function requestPasswordRecovery() {
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await requestPasswordReset(SUPER_ADMIN_EMAIL);
+      setNotice("If the admin account can receive recovery email, a reset link has been sent.");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not send a password reset link."); }
+    finally { setBusy(false); }
+  }
+
+  async function saveRecoveredPassword(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setBusy(true); setError(""); setNotice("");
+    try {
+      if (!recoveryToken) throw new Error("This recovery link is invalid or expired. Request a new one.");
+      if (newPassword.length < 12) throw new Error("Choose a password with at least 12 characters.");
+      if (newPassword !== confirmNewPassword) throw new Error("The passwords do not match.");
+      await updatePasswordFromRecovery(recoveryToken, newPassword);
+      clearStoredSession();
+      setRecoveryToken(""); setRecoveryIssue(""); setRecoveryMode(false);
+      setPassword(""); setNewPassword(""); setConfirmNewPassword("");
+      setNotice("Password updated. Sign in with your new password.");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not update the password."); }
+    finally { setBusy(false); }
+  }
+
   async function saveSettings(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setError(""); setNotice("");
     try {
@@ -230,6 +263,17 @@ export default function OwnerApp() {
   }
 
   if (loading) return <main className="owner-shell"><section className="owner-card owner-loading" aria-live="polite">Loading your admin workspace…</section></main>;
+  if (recoveryMode) return <main className="owner-shell"><div className="owner-brand"><span className="brand-dot" /> Review QR</div><section className="owner-card auth-card-owner">
+    <p className="owner-eyebrow">Super admin</p><h1>Choose a new password</h1><p className="owner-muted">Set a new password for your admin account.</p>
+    {recoveryIssue ? <p className="owner-alert owner-alert-error" role="alert">{recoveryIssue}</p> : <form className="owner-form" onSubmit={saveRecoveredPassword}>
+      <label>New password<input className="owner-input" type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" minLength={12} required /></label>
+      <label>Confirm new password<input className="owner-input" type="password" value={confirmNewPassword} onChange={(event) => setConfirmNewPassword(event.target.value)} autoComplete="new-password" minLength={12} required /></label>
+      {error && <p className="owner-alert owner-alert-error" role="alert">{error}</p>}{notice && <p className="owner-alert owner-alert-success" role="status">{notice}</p>}
+      <button className="owner-button owner-button-primary" type="submit" disabled={busy || !recoveryToken}>{busy ? "Updating…" : "Update password"}</button>
+      <button className="owner-button owner-button-secondary" type="button" onClick={() => void requestPasswordRecovery()} disabled={busy}>Send a new reset link</button>
+    </form>}
+    {recoveryIssue && <><button className="owner-button owner-button-primary" type="button" onClick={() => void requestPasswordRecovery()} disabled={busy}>{busy ? "Sending…" : "Send a new reset link"}</button>{notice && <p className="owner-alert owner-alert-success" role="status">{notice}</p>}{error && <p className="owner-alert owner-alert-error" role="alert">{error}</p>}</>}
+  </section></main>;
   if (!session) return <main className="owner-shell"><div className="owner-brand"><span className="brand-dot" /> Review QR</div><section className="owner-card auth-card-owner">
     <p className="owner-eyebrow">Super admin</p><h1>Sign in</h1><p className="owner-muted">Use the authorized admin account to manage your businesses.</p>
     <form className="owner-form" onSubmit={authenticate}>
@@ -237,6 +281,7 @@ export default function OwnerApp() {
       <label>Password<span className="password-row"><input className="owner-input" type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" minLength={8} required /><button type="button" className="password-toggle" onClick={() => setShowPassword((value) => !value)}>{showPassword ? "Hide" : "Show"}</button></span></label>
       {error && <p className="owner-alert owner-alert-error" role="alert">{error}</p>}{notice && <p className="owner-alert owner-alert-success" role="status">{notice}</p>}
       <button className="owner-button owner-button-primary" type="submit" disabled={busy}>{busy ? "Verifying…" : "Sign in"}</button>
+      <button className="owner-button owner-button-secondary" type="button" onClick={() => void requestPasswordRecovery()} disabled={busy}>{busy ? "Please wait…" : "Forgot password? Send reset link"}</button>
     </form>
   </section></main>;
 
