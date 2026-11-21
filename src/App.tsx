@@ -19,6 +19,22 @@ function getToken() {
   try { return decodeURIComponent(match[1]); } catch { return null; }
 }
 
+type PreparedClipboardWrite = { resolveDraft: (draft: string) => void; rejectDraft: () => void; finished: Promise<boolean> };
+function prepareClipboardWrite(): PreparedClipboardWrite | null {
+  if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") return null;
+  let resolveContent!: (content: Blob) => void;
+  let rejectContent!: (reason: Error) => void;
+  const content = new Promise<Blob>((resolve, reject) => { resolveContent = resolve; rejectContent = reject; });
+  try {
+    const finished = navigator.clipboard.write([new ClipboardItem({ "text/plain": content })]).then(() => true, () => false);
+    return {
+      resolveDraft: (draft) => resolveContent(new Blob([draft], { type: "text/plain" })),
+      rejectDraft: () => rejectContent(new Error("Review generation failed.")),
+      finished,
+    };
+  } catch { rejectContent(new Error("Clipboard is unavailable.")); return null; }
+}
+
 function CustomerReview({ token }: { token: string }) {
   const [page, setPage] = useState<PublicPage | null>(null);
   const [loading, setLoading] = useState(true);
@@ -85,8 +101,8 @@ function CustomerReview({ token }: { token: string }) {
 
   useEffect(() => () => { if (widgetId.current) (window as TurnstileWindow).turnstile?.remove(widgetId.current); }, []);
 
-  async function generateDraft(mapWindow: Window | null) {
-    if (!page || !hasRequiredAnswers || busy) { mapWindow?.close(); return; }
+  async function generateDraft(mapWindow: Window | null, clipboardWrite: PreparedClipboardWrite | null) {
+    if (!page || !hasRequiredAnswers || busy) { clipboardWrite?.rejectDraft(); mapWindow?.close(); return; }
     setBusy(true); setError(""); setNotice("");
     try {
       const response = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token, language, answers: Object.entries(answers).filter(([, value]) => value.trim()).map(([questionId, value]) => ({ questionId, value: value.trim() })), turnstileToken }) });
@@ -97,21 +113,28 @@ function CustomerReview({ token }: { token: string }) {
       setScreen("draft");
       setTurnstileToken("");
       let copied = false;
-      try { await navigator.clipboard.writeText(data.draft); copied = true; } catch { /* The editable draft remains available if clipboard permission is denied. */ }
+      if (clipboardWrite) {
+        clipboardWrite.resolveDraft(data.draft);
+        copied = await clipboardWrite.finished;
+      }
+      if (!copied) {
+        try { await navigator.clipboard.writeText(data.draft); copied = true; } catch { /* The editable draft remains available if clipboard permission is denied. */ }
+      }
       if (mapWindow) {
         mapWindow.opener = null;
         mapWindow.location.replace(page.business.google_review_url);
       }
       setNotice(!copied ? text.copyError : mapWindow ? text.copied : text.popupBlocked);
       window.scrollTo({ top: 0, behavior: "instant" });
-    } catch (cause) { mapWindow?.close(); setError(cause instanceof Error ? cause.message : "We couldn’t create a review draft. Please try again."); }
+    } catch (cause) { clipboardWrite?.rejectDraft(); mapWindow?.close(); setError(cause instanceof Error ? cause.message : "We couldn’t create a review draft. Please try again."); }
     finally { setBusy(false); }
   }
 
   function submitAnswers(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const clipboardWrite = prepareClipboardWrite();
     const mapWindow = window.open("about:blank", "_blank");
-    void generateDraft(mapWindow);
+    void generateDraft(mapWindow, clipboardWrite);
   }
 
   async function copyDraftAndOpenMaps() {
