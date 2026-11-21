@@ -12,7 +12,7 @@ const QUESTION_LIMIT = 20;
 const SUPER_ADMIN_EMAIL = "htracker92@gmail.com";
 const categories = [["general", "General business"], ["restaurant", "Restaurant"], ["cafe", "Cafe"], ["salon", "Salon"], ["retail", "Retail"], ["clinic", "Clinic"], ["automotive", "Automotive"], ["other", "Other"]];
 const defaultQuestions: Question[] = [
-  { id: null, text: "How was your overall experience?", enabled: true, required: true, answer_type: "rating", options: ["Good", "Average", "Bad"] },
+  { id: null, text: "How was your overall experience?", enabled: true, required: true, answer_type: "rating", options: ["Good", "Poor", "Average", "Excellent"] },
   { id: null, text: "What stood out during your visit?", enabled: true, required: false, answer_type: "text", options: [] },
 ];
 function makeToken() {
@@ -210,7 +210,7 @@ export default function OwnerApp() {
       if (!questions.some((question) => question.enabled)) throw new Error("Keep at least one question turned on.");
       if (questions.length > QUESTION_LIMIT) throw new Error(`You can add up to ${QUESTION_LIMIT} questions.`);
       const cleanQuestions = questions.map((question) => {
-        const options = question.answer_type === "rating" ? ["Good", "Average", "Bad"] : question.answer_type === "choice" ? question.options.map((value) => value.trim()).filter(Boolean) : [];
+        const options = question.answer_type === "rating" ? ["Good", "Poor", "Average", "Excellent"] : question.answer_type === "choice" ? question.options.map((value) => value.trim()).filter(Boolean) : [];
         if (question.text.trim().length < 3) throw new Error("Each question needs at least 3 characters.");
         if (question.answer_type === "choice" && (options.length < 2 || options.length > 8)) throw new Error("Choice questions need 2 to 8 answer options.");
         return { id: question.id, text: question.text.trim(), enabled: question.enabled, required: question.required, answer_type: question.answer_type, options };
@@ -257,7 +257,7 @@ export default function OwnerApp() {
     activateWorkspace(workspace); setError(""); setNotice(""); setOpenBusinessMenu("");
   }
   function updateQuestion(index: number, patch: Partial<Question>) { setQuestions((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item)); }
-  function addQuestion() { setQuestions((current) => current.length >= QUESTION_LIMIT ? current : [...current, { id: null, text: "", enabled: true, required: false, answer_type: "rating", options: ["Good", "Average", "Bad"] }]); }
+  function addQuestion() { setQuestions((current) => current.length >= QUESTION_LIMIT ? current : [...current, { id: null, text: "", enabled: true, required: false, answer_type: "rating", options: ["Good", "Poor", "Average", "Excellent"] }]); }
   function moveQuestion(index: number, direction: -1 | 1) {
     setQuestions((current) => { const nextIndex = index + direction; if (nextIndex < 0 || nextIndex >= current.length) return current; const next = [...current]; [next[index], next[nextIndex]] = [next[nextIndex], next[index]]; return next; });
   }
@@ -320,7 +320,7 @@ export default function OwnerApp() {
         <section className="owner-section"><div className="owner-section-heading owner-question-heading"><div><p className="owner-eyebrow">CUSTOMER FORM</p><h2>Questions</h2><p className="owner-muted">Shown together on one page, in the order below.</p></div><button className="owner-button owner-button-secondary" type="button" disabled={questions.length >= QUESTION_LIMIT} onClick={addQuestion}>Add question</button></div>
           <div className="owner-question-list">{questions.map((question, index) => <article className="owner-question" key={question.id ?? `new-${index}`}>
             <div className="owner-question-title"><span className="owner-order">{String(index + 1).padStart(2, "0")}</span><label className="owner-grow">Question text<input className="owner-input" value={question.text} onChange={(event) => updateQuestion(index, { text: event.target.value })} minLength={3} maxLength={100} required /></label><div className="owner-question-actions"><button className="owner-order-button" type="button" aria-label={`Move question ${index + 1} up`} disabled={index === 0} onClick={() => moveQuestion(index, -1)}>↑</button><button className="owner-order-button" type="button" aria-label={`Move question ${index + 1} down`} disabled={index === questions.length - 1} onClick={() => moveQuestion(index, 1)}>↓</button><button className="owner-remove" type="button" aria-label={`Remove question ${index + 1}`} onClick={() => setQuestions((current) => current.filter((_, itemIndex) => itemIndex !== index))}>Remove</button></div></div>
-            <div className="owner-question-controls"><label>Answer type<select className="owner-input" value={question.answer_type} onChange={(event) => { const answer_type = event.target.value as AnswerType; updateQuestion(index, { answer_type, options: answer_type === "rating" ? ["Good", "Average", "Bad"] : answer_type === "choice" ? (question.options.length >= 2 ? question.options : ["Option 1", "Option 2"]) : [] }); }}><option value="rating">Rating</option><option value="choice">Choose from options</option><option value="text">Short written answer</option></select></label>
+            <div className="owner-question-controls"><label>Answer type<select className="owner-input" value={question.answer_type} onChange={(event) => { const answer_type = event.target.value as AnswerType; updateQuestion(index, { answer_type, options: answer_type === "rating" ? ["Good", "Poor", "Average", "Excellent"] : answer_type === "choice" ? (question.options.length >= 2 ? question.options : ["Option 1", "Option 2"]) : [] }); }}><option value="rating">Rating</option><option value="choice">Choose from options</option><option value="text">Short written answer</option></select></label>
               {question.answer_type === "choice" && <label className="owner-grow">Options <span className="owner-optional">One per line, 2–8 choices</span><textarea className="owner-input owner-textarea owner-options" value={question.options.join("\n")} onChange={(event) => updateQuestion(index, { options: event.target.value.split("\n").slice(0, 8) })} rows={3} /></label>}
               {question.answer_type === "text" && <label className="owner-grow">Customer response<input className="owner-input" value="A brief sentence (up to 160 characters)" readOnly /></label>}
               <label className="owner-check"><input type="checkbox" checked={question.required} onChange={(event) => updateQuestion(index, { required: event.target.checked })} /> Required</label>

@@ -7,10 +7,10 @@ type PublicPage = { business: { id: string; name: string; category: string; welc
 type TurnstileWindow = Window & { turnstile?: { render: (target: HTMLElement, options: Record<string, unknown>) => string; reset: (widgetId?: string) => void; remove: (widgetId?: string) => void } };
 const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
 const languageChoices: Language[] = ["English", "Hindi", "Hinglish"];
-const labels: Record<Language, { title: string; intro: string; required: string; optional: string; shortAnswer: string; submit: string; working: string; draftTitle: string; draftHint: string; editAnswers: string; copy: string; copyOpen: string; copied: string; copyError: string; stars: string; inactive: string; privacy: string }> = {
-  English: { title: "How was your visit?", intro: "Share what stood out to you. Answer only what you like.", required: "Required", optional: "Optional", shortAnswer: "Write a brief answer…", submit: "Write my review", working: "Putting your thoughts into words…", draftTitle: "Your review draft", draftHint: "Edit this so it reflects your experience. Choose your stars yourself on Google.", editAnswers: "Edit my answers", copy: "Copy review", copyOpen: "Copy & open Google Maps", copied: "Copied. Paste your review on Google and choose your rating.", copyError: "Copy was blocked. Select the review text, copy it, then open Google.", stars: "On Google, choose your stars, paste your review, and post when ready.", inactive: "This QR code is not active", privacy: "Your answers and review draft are not stored." },
-  Hindi: { title: "आपका अनुभव कैसा रहा?", intro: "अपने अनुभव के बारे में बताएं। जिन सवालों का जवाब देना चाहें, दें।", required: "ज़रूरी", optional: "ज़रूरी नहीं", shortAnswer: "संक्षेप में लिखें…", submit: "मेरी समीक्षा लिखें", working: "आपके विचार लिखे जा रहे हैं…", draftTitle: "आपकी समीक्षा का ड्राफ्ट", draftHint: "इसे अपने अनुभव के अनुसार बदलें। Google पर अपनी रेटिंग खुद चुनें।", editAnswers: "जवाब बदलें", copy: "समीक्षा कॉपी करें", copyOpen: "कॉपी करें और Google Maps खोलें", copied: "कॉपी हो गया। Google पर पेस्ट करें और अपनी रेटिंग चुनें।", copyError: "कॉपी नहीं हो पाया। समीक्षा चुनकर कॉपी करें, फिर Google खोलें।", stars: "Google पर स्टार चुनें, समीक्षा पेस्ट करें और तैयार होने पर पोस्ट करें।", inactive: "यह QR कोड चालू नहीं है", privacy: "आपके जवाब और समीक्षा का ड्राफ्ट सेव नहीं किया जाता।" },
-  Hinglish: { title: "Aapka experience kaisa raha?", intro: "Apne visit ke baare mein batayein. Sirf un questions ka answer dein jo aap chahein.", required: "Required", optional: "Optional", shortAnswer: "Short answer likhein…", submit: "Meri review likhein", working: "Aapke thoughts likhe ja rahe hain…", draftTitle: "Aapka review draft", draftHint: "Isse apne experience ke hisaab se edit karein. Google par stars khud choose karein.", editAnswers: "Answers edit karein", copy: "Review copy karein", copyOpen: "Copy karke Google Maps kholein", copied: "Copied. Google par paste karke apni rating choose karein.", copyError: "Copy block ho gaya. Review select karke copy karein, phir Google kholein.", stars: "Google par stars choose karein, review paste karein, aur ready hone par post karein.", inactive: "Yeh QR code active nahi hai", privacy: "Aapke answers aur review draft save nahi hote." },
+const labels: Record<Language, { title: string; intro: string; required: string; optional: string; shortAnswer: string; submit: string; working: string; draftTitle: string; draftHint: string; editAnswers: string; copyOpen: string; copied: string; copyError: string; popupBlocked: string; stars: string; inactive: string; privacy: string }> = {
+  English: { title: "How was your visit?", intro: "Share what stood out to you. Answer only what you like.", required: "Required", optional: "Optional", shortAnswer: "Write a brief answer…", submit: "Write, copy & open Google Maps", working: "Putting your thoughts into words…", draftTitle: "Your review draft", draftHint: "Edit this so it reflects your experience. The draft is copied when created.", editAnswers: "Edit my answers", copyOpen: "Copy edits & open Google Maps", copied: "Copied. Paste your review on Google and choose your rating.", copyError: "The draft is ready, but copying was blocked. Select the review text and copy it manually.", popupBlocked: "The draft is ready and copied, but your browser blocked Google Maps. Allow pop-ups and use the button below.", stars: "On Google, choose your stars, paste your review, and post when ready.", inactive: "This QR code is not active", privacy: "Your answers and review draft are not stored." },
+  Hindi: { title: "आपका अनुभव कैसा रहा?", intro: "अपने अनुभव के बारे में बताएं। जिन सवालों का जवाब देना चाहें, दें।", required: "ज़रूरी", optional: "ज़रूरी नहीं", shortAnswer: "संक्षेप में लिखें…", submit: "लिखें, कॉपी करें और Google Maps खोलें", working: "आपके विचार लिखे जा रहे हैं…", draftTitle: "आपकी समीक्षा का ड्राफ्ट", draftHint: "इसे अपने अनुभव के अनुसार बदलें। ड्राफ्ट बनते ही कॉपी हो जाता है।", editAnswers: "जवाब बदलें", copyOpen: "बदलाव कॉपी करें और Google Maps खोलें", copied: "कॉपी हो गया। Google पर पेस्ट करें और अपनी रेटिंग चुनें।", copyError: "ड्राफ्ट तैयार है, लेकिन कॉपी नहीं हो पाया। समीक्षा चुनकर मैन्युअल रूप से कॉपी करें।", popupBlocked: "ड्राफ्ट कॉपी हो गया, लेकिन ब्राउज़र ने Google Maps को रोका। पॉप-अप की अनुमति दें और नीचे दिए बटन का उपयोग करें।", stars: "Google पर स्टार चुनें, समीक्षा पेस्ट करें और तैयार होने पर पोस्ट करें।", inactive: "यह QR कोड चालू नहीं है", privacy: "आपके जवाब और समीक्षा का ड्राफ्ट सेव नहीं किया जाता।" },
+  Hinglish: { title: "Aapka experience kaisa raha?", intro: "Apne visit ke baare mein batayein. Sirf un questions ka answer dein jo aap chahein.", required: "Required", optional: "Optional", shortAnswer: "Short answer likhein…", submit: "Likhein, copy karein & Google Maps kholein", working: "Aapke thoughts likhe ja rahe hain…", draftTitle: "Aapka review draft", draftHint: "Apne experience ke hisaab se edit karein. Draft banne par copy ho jata hai.", editAnswers: "Answers edit karein", copyOpen: "Edits copy karein & Google Maps kholein", copied: "Copied. Google par paste karke apni rating choose karein.", copyError: "Draft ready hai, par copy nahi hua. Review select karke manually copy karein.", popupBlocked: "Draft copy ho gaya, par browser ne Google Maps ko block kiya. Pop-ups allow karke neeche ka button use karein.", stars: "Google par stars choose karein, review paste karein, aur ready hone par post karein.", inactive: "Yeh QR code active nahi hai", privacy: "Aapke answers aur review draft save nahi hote." },
 };
 
 function getToken() {
@@ -85,8 +85,8 @@ function CustomerReview({ token }: { token: string }) {
 
   useEffect(() => () => { if (widgetId.current) (window as TurnstileWindow).turnstile?.remove(widgetId.current); }, []);
 
-  async function generateDraft() {
-    if (!page || !hasRequiredAnswers || busy) return;
+  async function generateDraft(mapWindow: Window | null) {
+    if (!page || !hasRequiredAnswers || busy) { mapWindow?.close(); return; }
     setBusy(true); setError(""); setNotice("");
     try {
       const response = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token, language, answers: Object.entries(answers).filter(([, value]) => value.trim()).map(([questionId, value]) => ({ questionId, value: value.trim() })), turnstileToken }) });
@@ -96,20 +96,31 @@ function CustomerReview({ token }: { token: string }) {
       window.history.pushState({ reviewDraft: true }, "", `/r/${encodeURIComponent(token)}/draft`);
       setScreen("draft");
       setTurnstileToken("");
+      let copied = false;
+      try { await navigator.clipboard.writeText(data.draft); copied = true; } catch { /* Keep the editable draft available if clipboard access is denied. */ }
+      if (mapWindow) {
+        mapWindow.opener = null;
+        mapWindow.location.replace(page.business.google_review_url);
+      }
+      setNotice(!copied ? text.copyError : mapWindow ? text.copied : text.popupBlocked);
       window.scrollTo({ top: 0, behavior: "instant" });
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "We couldn’t create a review draft. Please try again."); }
+    } catch (cause) { mapWindow?.close(); setError(cause instanceof Error ? cause.message : "We couldn’t create a review draft. Please try again."); }
     finally { setBusy(false); }
   }
 
   function submitAnswers(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    void generateDraft();
+    const mapWindow = window.open("about:blank", "_blank");
+    void generateDraft(mapWindow);
   }
 
-  async function copyDraft() {
+  async function copyDraftAndOpenMaps() {
     if (!draft) return;
-    try { await navigator.clipboard.writeText(draft); setNotice(text.copied); }
-    catch { setNotice(text.copyError); }
+    const mapWindow = window.open("about:blank", "_blank");
+    let copied = false;
+    try { await navigator.clipboard.writeText(draft); copied = true; } catch { /* Show the manual-copy fallback. */ }
+    if (mapWindow) { mapWindow.opener = null; mapWindow.location.replace(page?.business.google_review_url || "about:blank"); }
+    setNotice(!copied ? text.copyError : mapWindow ? text.copied : text.popupBlocked);
   }
 
   if (loading) return <main className="page-shell"><section className="card inactive-card" role="status">Loading…</section></main>;
@@ -123,7 +134,7 @@ function CustomerReview({ token }: { token: string }) {
         <div className="customer-question-list">{page.questions.map((question, index) => <fieldset className="customer-question" key={question.id}>
           <legend><span className="customer-question-number">{String(index + 1).padStart(2, "0")}</span>{question.text}<span className={question.required ? "customer-required" : "customer-optional"}>{question.required ? text.required : text.optional}</span></legend>
           {question.answer_type === "text" ? <textarea className="customer-answer-text" value={answers[question.id] ?? ""} onChange={(event) => setAnswers((current) => ({ ...current, [question.id]: event.target.value.slice(0, 160) }))} maxLength={160} rows={3} placeholder={text.shortAnswer} required={question.required} /> : <div className="customer-answer-options" role="radiogroup" aria-label={question.text}>
-            {(question.answer_type === "rating" ? ["Good", "Average", "Bad"] : question.options).map((option) => <label className={`customer-answer-option ${answers[question.id] === option ? "is-selected" : ""}`} key={option}><input type="radio" name={`answer-${question.id}`} value={option} checked={answers[question.id] === option} onChange={() => setAnswers((current) => ({ ...current, [question.id]: option }))} /><span className="answer-radio" aria-hidden="true" />{option}</label>)}
+            {(question.answer_type === "rating" ? ["Good", "Poor", "Average", "Excellent"] : question.options).map((option) => <label className={`customer-answer-option ${answers[question.id] === option ? "is-selected" : ""}`} key={option}><input type="radio" name={`answer-${question.id}`} value={option} checked={answers[question.id] === option} onChange={() => setAnswers((current) => ({ ...current, [question.id]: option }))} /><span className="answer-radio" aria-hidden="true" />{option}</label>)}
           </div>}
         </fieldset>)}</div>
         {turnstileSiteKey && <div className="turnstile-wrap"><div ref={turnstileHost} /><p>Complete the quick security check to create your draft.</p></div>}
@@ -131,7 +142,7 @@ function CustomerReview({ token }: { token: string }) {
         <button className="button button-primary customer-submit" type="submit" disabled={busy || !hasRequiredAnswers || (Boolean(turnstileSiteKey) && !turnstileToken)}>{busy ? <><span className="spinner" aria-hidden="true" />{text.working}</> : <>{text.submit}<span aria-hidden="true">→</span></>}</button>
       </form>
       <p className="privacy-inline"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2.5 4.2 5v4.2c0 4.1 2.5 6.7 5.8 8.3 3.3-1.6 5.8-4.2 5.8-8.3V5z"/><path d="m7.4 9.8 1.7 1.7 3.6-3.8"/></svg>{text.privacy}</p>
-    </section> : <section className="card result-card" id="review-draft"><button className="back-button draft-back" type="button" onClick={() => window.history.back()}>{text.editAnswers}</button><div className="success-symbol" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.2 4.2L19 7" /></svg></div><p className="eyebrow">YOUR WORDS, SHAPED</p><h2>{text.draftTitle}</h2><p className="intro-copy">{text.draftHint}</p><label className="field-label" htmlFor="draft-text">{text.draftTitle}</label><textarea id="draft-text" className="draft-input" value={draft} onChange={(event) => setDraft(event.target.value)} maxLength={6000} rows={7} />{text.stars && <p className="honesty-hint">{text.stars}</p>}{notice && <p className="message message-success" role="status">{notice}</p>}<div className="result-actions"><button className="button button-secondary" type="button" onClick={() => void copyDraft()}>{text.copy}</button><a className="button button-primary google-link" href={page.business.google_review_url} target="_blank" rel="noopener noreferrer" onClick={() => void copyDraft()}>{text.copyOpen}<span aria-hidden="true">↗</span></a></div></section>}
+    </section> : <section className="card result-card" id="review-draft"><button className="back-button draft-back" type="button" onClick={() => window.history.back()}>{text.editAnswers}</button><div className="success-symbol" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.2 4.2L19 7" /></svg></div><p className="eyebrow">YOUR WORDS, SHAPED</p><h2>{text.draftTitle}</h2><p className="intro-copy">{text.draftHint}</p><label className="field-label" htmlFor="draft-text">{text.draftTitle}</label><textarea id="draft-text" className="draft-input" value={draft} onChange={(event) => setDraft(event.target.value)} maxLength={6000} rows={7} />{text.stars && <p className="honesty-hint">{text.stars}</p>}{notice && <p className="message message-success" role="status">{notice}</p>}<div className="result-actions"><button className="button button-primary google-link" type="button" onClick={() => void copyDraftAndOpenMaps()}>{text.copyOpen}<span aria-hidden="true">↗</span></button></div></section>}
     <footer className="privacy-footer">Only share what reflects your own experience. <span>·</span> <a href="/privacy.html">Privacy</a></footer>
   </main>;
 }

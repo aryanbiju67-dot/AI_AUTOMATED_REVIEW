@@ -71,7 +71,7 @@ function validateAnswers(value: unknown, questions: Question[]): Answer[] | null
       if (question.required) return null;
       continue;
     }
-    if (question.answer_type === "rating" && !["Good", "Average", "Bad"].includes(value)) return null;
+    if (question.answer_type === "rating" && !["Good", "Poor", "Average", "Excellent"].includes(value)) return null;
     if (question.answer_type === "choice" && !question.options.includes(value)) return null;
     if (question.answer_type === "text" && (value.length > 160 || value.length < 2)) return null;
     answers.push({ questionId: question.id, value });
@@ -137,13 +137,17 @@ function topicFor(question: Question): Topic {
 }
 function tidyAnswer(value: string) { return value.replace(/[\r\n]+/g, " ").replace(/\s+/g, " ").trim().replace(/[.!?]+$/, ""); }
 function composeReview(page: PublicPage, questions: Question[], answers: Answer[], language: Language) {
-  const phrases = answers.map((answer) => {
+  const primaryRating = answers.find((answer) => {
+    const question = questions.find((item) => item.id === answer.questionId);
+    return question?.required && question.answer_type === "rating";
+  });
+  const phrases = answers.filter((answer) => answer !== primaryRating).map((answer) => {
     const question = questions.find((item) => item.id === answer.questionId)!;
     const detail = tidyAnswer(answer.value);
     if (question.answer_type === "text") return detail;
     const rating = detail.toLowerCase();
-    if (["good", "average", "bad"].includes(rating)) {
-      const sentiment = rating === "good" ? "Good" : rating === "bad" ? "Bad" : "Average";
+    if (["good", "poor", "average", "excellent", "bad"].includes(rating)) {
+      const sentiment = rating === "good" || rating === "excellent" ? "Good" : rating === "poor" || rating === "bad" ? "Bad" : "Average";
       const topic = topicFor(question);
       const bank = language === "Hindi" ? hindiPhrases : language === "Hinglish" ? hinglishPhrases : englishPhrases;
       return pick(bank[topic][sentiment]);
@@ -157,7 +161,7 @@ function composeReview(page: PublicPage, questions: Question[], answers: Answer[
     const bank = language === "Hindi" ? hindiPhrases : language === "Hinglish" ? hinglishPhrases : englishPhrases;
     return pick(bank[topic][answer.value as "Good" | "Average" | "Bad"]);
   }).filter(Boolean);
-  if (phrases.length === 0) return "";
+  if (phrases.length === 0 && !primaryRating) return "";
   const shuffled = [...phrases];
   for (let index = shuffled.length - 1; index > 0; index--) {
     const other = Math.floor(Math.random() * (index + 1));
@@ -165,15 +169,37 @@ function composeReview(page: PublicPage, questions: Question[], answers: Answer[
   }
   const name = page.business.name.trim();
   if (language === "English") {
+    const rating = primaryRating?.value.toLowerCase();
+    const openings = rating === "excellent"
+      ? [`I had an excellent visit to ${name}.`, `I really enjoyed my time at ${name}.`, `My experience at ${name} was excellent.`]
+      : rating === "good"
+        ? [`I had a good experience at ${name}.`, `I enjoyed my visit to ${name}.`, `I had a nice time at ${name}.`]
+        : rating === "average"
+          ? [`My visit to ${name} was alright overall.`, `I had an average experience at ${name}.`, `My experience at ${name} was mixed.`]
+          : rating === "poor" || rating === "bad"
+            ? [`I was disappointed with my visit to ${name}.`, `My experience at ${name} fell short of what I expected.`, `Unfortunately, I left disappointed after visiting ${name}.`]
+            : [`A few things stood out during my visit to ${name}.`, `Here are a few things from my visit to ${name}.`, ""];
     let review = shuffled.join(". ");
-    const starts = [`A few things stood out during my visit to ${name}.`, `Here are a few things from my visit to ${name}.`, ""];
-    const start = pick(starts);
-    if (start) review = `${start} ${review}`;
+    const start = pick(openings);
+    if (start) review = review ? `${start} ${review}` : start;
     return `${review.replace(/\s+/g, " ").replace(/([.!?])\s*([a-z])/g, (_m, p, c) => `${p} ${c.toUpperCase()}`).replace(/[.!?]*$/, ".")}`.slice(0, 6000);
   }
   const separator = language === "Hindi" ? "। " : ". ";
-  const opening = language === "Hindi" ? [`${name} में मेरा अनुभव ऐसा रहा: `, "", "कुल मिलाकर, "] : [`${name} mein mera experience aisa raha: `, "", "Overall, "];
-  return `${pick(opening)}${shuffled.join(separator)}${language === "Hindi" ? "।" : "."}`.slice(0, 6000);
+  const rating = primaryRating?.value.toLowerCase();
+  const opening = language === "Hindi"
+    ? rating === "excellent" ? [`${name} में मेरा अनुभव शानदार रहा।`, `${name} में बहुत अच्छा अनुभव रहा।`]
+      : rating === "good" ? [`${name} में मेरा अनुभव अच्छा रहा।`, `${name} आकर अच्छा लगा।`]
+        : rating === "average" ? [`${name} का मेरा अनुभव ठीक-ठाक रहा।`, `${name} में अनुभव मिला-जुला रहा।`]
+          : rating === "poor" || rating === "bad" ? [`${name} में मेरा अनुभव निराशाजनक रहा।`, `${name} से मुझे बेहतर अनुभव की उम्मीद थी।`]
+            : [`${name} में मेरा अनुभव ऐसा रहा:`, ""]
+    : rating === "excellent" ? [`${name} mein mera experience excellent raha.`, `${name} par time spend karke kaafi achha laga.`]
+      : rating === "good" ? [`${name} mein mera experience achha raha.`, `${name} visit karke achha laga.`]
+        : rating === "average" ? [`${name} ka experience theek-thaak raha.`, `${name} mein mera experience mixed raha.`]
+          : rating === "poor" || rating === "bad" ? [`${name} mein mera experience disappointing raha.`, `${name} se mujhe better experience ki expectation thi.`]
+            : [`${name} mein mera experience aisa raha:`, "Overall, "];
+  const start = pick(opening);
+  const details = shuffled.length ? `${start ? `${start} ` : ""}${shuffled.join(separator)}${language === "Hindi" ? "।" : "."}` : start;
+  return details.slice(0, 6000);
 }
 
 export async function onRequestPost({ request, env }: PagesContext) {
