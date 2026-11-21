@@ -8,9 +8,9 @@ type TurnstileWindow = Window & { turnstile?: { render: (target: HTMLElement, op
 const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
 const languageChoices: Language[] = ["English", "Hindi", "Hinglish"];
 const labels: Record<Language, { title: string; intro: string; required: string; optional: string; shortAnswer: string; submit: string; working: string; draftTitle: string; draftHint: string; editAnswers: string; copyOpen: string; copied: string; copyError: string; popupBlocked: string; stars: string; inactive: string; privacy: string }> = {
-  English: { title: "How was your visit?", intro: "Share what stood out to you. Answer only what you like.", required: "Required", optional: "Optional", shortAnswer: "Write a brief answer…", submit: "Write, copy & open Google Maps", working: "Putting your thoughts into words…", draftTitle: "Your review draft", draftHint: "Edit this so it reflects your experience. The draft is copied when created.", editAnswers: "Edit my answers", copyOpen: "Copy edits & open Google Maps", copied: "Copied. Paste your review on Google and choose your rating.", copyError: "The draft is ready, but copying was blocked. Select the review text and copy it manually.", popupBlocked: "The draft is ready and copied, but your browser blocked Google Maps. Allow pop-ups and use the button below.", stars: "On Google, choose your stars, paste your review, and post when ready.", inactive: "This QR code is not active", privacy: "Your answers and review draft are not stored." },
-  Hindi: { title: "आपका अनुभव कैसा रहा?", intro: "अपने अनुभव के बारे में बताएं। जिन सवालों का जवाब देना चाहें, दें।", required: "ज़रूरी", optional: "ज़रूरी नहीं", shortAnswer: "संक्षेप में लिखें…", submit: "लिखें, कॉपी करें और Google Maps खोलें", working: "आपके विचार लिखे जा रहे हैं…", draftTitle: "आपकी समीक्षा का ड्राफ्ट", draftHint: "इसे अपने अनुभव के अनुसार बदलें। ड्राफ्ट बनते ही कॉपी हो जाता है।", editAnswers: "जवाब बदलें", copyOpen: "बदलाव कॉपी करें और Google Maps खोलें", copied: "कॉपी हो गया। Google पर पेस्ट करें और अपनी रेटिंग चुनें।", copyError: "ड्राफ्ट तैयार है, लेकिन कॉपी नहीं हो पाया। समीक्षा चुनकर मैन्युअल रूप से कॉपी करें।", popupBlocked: "ड्राफ्ट कॉपी हो गया, लेकिन ब्राउज़र ने Google Maps को रोका। पॉप-अप की अनुमति दें और नीचे दिए बटन का उपयोग करें।", stars: "Google पर स्टार चुनें, समीक्षा पेस्ट करें और तैयार होने पर पोस्ट करें।", inactive: "यह QR कोड चालू नहीं है", privacy: "आपके जवाब और समीक्षा का ड्राफ्ट सेव नहीं किया जाता।" },
-  Hinglish: { title: "Aapka experience kaisa raha?", intro: "Apne visit ke baare mein batayein. Sirf un questions ka answer dein jo aap chahein.", required: "Required", optional: "Optional", shortAnswer: "Short answer likhein…", submit: "Likhein, copy karein & Google Maps kholein", working: "Aapke thoughts likhe ja rahe hain…", draftTitle: "Aapka review draft", draftHint: "Apne experience ke hisaab se edit karein. Draft banne par copy ho jata hai.", editAnswers: "Answers edit karein", copyOpen: "Edits copy karein & Google Maps kholein", copied: "Copied. Google par paste karke apni rating choose karein.", copyError: "Draft ready hai, par copy nahi hua. Review select karke manually copy karein.", popupBlocked: "Draft copy ho gaya, par browser ne Google Maps ko block kiya. Pop-ups allow karke neeche ka button use karein.", stars: "Google par stars choose karein, review paste karein, aur ready hone par post karein.", inactive: "Yeh QR code active nahi hai", privacy: "Aapke answers aur review draft save nahi hote." },
+  English: { title: "How was your visit?", intro: "Share what stood out to you. Answer only what you like.", required: "Required", optional: "Optional", shortAnswer: "Write a brief answer…", submit: "Generate review", working: "Drafting your review…", draftTitle: "Your review draft", draftHint: "Edit the draft to match your experience, then copy it and open Google to post it.", editAnswers: "Edit my answers", copyOpen: "Copy & open Google", copied: "Copied. Paste your review on Google and choose your rating.", copyError: "The draft is ready, but copying was blocked. Select the review text and copy it manually.", popupBlocked: "The draft is ready and copied, but your browser blocked Google Maps. Allow pop-ups and try again.", stars: "On Google, choose your stars, paste your review, and post when ready.", inactive: "This QR code is not active", privacy: "Your answers and review draft are not stored." },
+  Hindi: { title: "आपका अनुभव कैसा रहा?", intro: "अपने अनुभव के बारे में बताएं। जिन सवालों का जवाब देना चाहें, दें।", required: "ज़रूरी", optional: "ज़रूरी नहीं", shortAnswer: "संक्षेप में लिखें…", submit: "समीक्षा बनाएं", working: "आपकी समीक्षा तैयार हो रही है…", draftTitle: "आपकी समीक्षा का ड्राफ्ट", draftHint: "ड्राफ्ट को अपने अनुभव के अनुसार बदलें, फिर कॉपी करके Google पर पोस्ट करें।", editAnswers: "जवाब बदलें", copyOpen: "कॉपी करें और Google खोलें", copied: "कॉपी हो गया। Google पर पेस्ट करें और अपनी रेटिंग चुनें।", copyError: "ड्राफ्ट तैयार है, लेकिन कॉपी नहीं हो पाया। समीक्षा चुनकर मैन्युअल रूप से कॉपी करें।", popupBlocked: "ड्राफ्ट कॉपी हो गया, लेकिन ब्राउज़र ने Google Maps को रोका। पॉप-अप की अनुमति देकर फिर कोशिश करें।", stars: "Google पर स्टार चुनें, समीक्षा पेस्ट करें और तैयार होने पर पोस्ट करें।", inactive: "यह QR कोड चालू नहीं है", privacy: "आपके जवाब और समीक्षा का ड्राफ्ट सेव नहीं किया जाता।" },
+  Hinglish: { title: "Aapka experience kaisa raha?", intro: "Apne visit ke baare mein batayein. Sirf un questions ka answer dein jo aap chahein.", required: "Required", optional: "Optional", shortAnswer: "Short answer likhein…", submit: "Generate review", working: "Aapki review draft ho rahi hai…", draftTitle: "Aapka review draft", draftHint: "Draft ko apne experience ke hisaab se edit karein, phir copy karke Google par post karein.", editAnswers: "Answers edit karein", copyOpen: "Copy & open Google", copied: "Copied. Google par paste karke apni rating choose karein.", copyError: "Draft ready hai, par copy nahi hua. Review select karke manually copy karein.", popupBlocked: "Draft copy ho gaya, par browser ne Google Maps ko block kiya. Pop-ups allow karke dobara try karein.", stars: "Google par stars choose karein, review paste karein, aur ready hone par post karein.", inactive: "Yeh QR code active nahi hai", privacy: "Aapke answers aur review draft save nahi hote." },
 };
 
 function getToken() {
@@ -85,8 +85,8 @@ function CustomerReview({ token }: { token: string }) {
 
   useEffect(() => () => { if (widgetId.current) (window as TurnstileWindow).turnstile?.remove(widgetId.current); }, []);
 
-  async function generateDraft(mapWindow: Window | null) {
-    if (!page || !hasRequiredAnswers || busy) { mapWindow?.close(); return; }
+  async function generateDraft() {
+    if (!page || !hasRequiredAnswers || busy) return;
     setBusy(true); setError(""); setNotice("");
     try {
       const response = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token, language, answers: Object.entries(answers).filter(([, value]) => value.trim()).map(([questionId, value]) => ({ questionId, value: value.trim() })), turnstileToken }) });
@@ -96,22 +96,15 @@ function CustomerReview({ token }: { token: string }) {
       window.history.pushState({ reviewDraft: true }, "", `/r/${encodeURIComponent(token)}/draft`);
       setScreen("draft");
       setTurnstileToken("");
-      let copied = false;
-      try { await navigator.clipboard.writeText(data.draft); copied = true; } catch { /* Keep the editable draft available if clipboard access is denied. */ }
-      if (mapWindow) {
-        mapWindow.opener = null;
-        mapWindow.location.replace(page.business.google_review_url);
-      }
-      setNotice(!copied ? text.copyError : mapWindow ? text.copied : text.popupBlocked);
+      setNotice("");
       window.scrollTo({ top: 0, behavior: "instant" });
-    } catch (cause) { mapWindow?.close(); setError(cause instanceof Error ? cause.message : "We couldn’t create a review draft. Please try again."); }
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "We couldn’t create a review draft. Please try again."); }
     finally { setBusy(false); }
   }
 
   function submitAnswers(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const mapWindow = window.open("about:blank", "_blank");
-    void generateDraft(mapWindow);
+    void generateDraft();
   }
 
   async function copyDraftAndOpenMaps() {
@@ -139,7 +132,7 @@ function CustomerReview({ token }: { token: string }) {
         </fieldset>)}</div>
         {turnstileSiteKey && <div className="turnstile-wrap"><div ref={turnstileHost} /><p>Complete the quick security check to create your draft.</p></div>}
         {error && <p className="message message-error" role="alert">{error}</p>}
-        <button className="button button-primary customer-submit" type="submit" disabled={busy || !hasRequiredAnswers || (Boolean(turnstileSiteKey) && !turnstileToken)}>{busy ? <><span className="spinner" aria-hidden="true" />{text.working}</> : <>{text.submit}<span aria-hidden="true">→</span></>}</button>
+        <button className="button button-primary customer-submit" type="submit" disabled={busy || !hasRequiredAnswers || (Boolean(turnstileSiteKey) && !turnstileToken)}>{busy ? <><span className="spinner" aria-hidden="true" />{text.working}</> : <><span className="draft-ai-icon" role="img" aria-label="Automated review draft">✦</span>{text.submit}<span aria-hidden="true">→</span></>}</button>
       </form>
       <p className="privacy-inline"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2.5 4.2 5v4.2c0 4.1 2.5 6.7 5.8 8.3 3.3-1.6 5.8-4.2 5.8-8.3V5z"/><path d="m7.4 9.8 1.7 1.7 3.6-3.8"/></svg>{text.privacy}</p>
     </section> : <section className="card result-card" id="review-draft"><button className="back-button draft-back" type="button" onClick={() => window.history.back()}>{text.editAnswers}</button><div className="success-symbol" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.2 4.2L19 7" /></svg></div><p className="eyebrow">YOUR WORDS, SHAPED</p><h2>{text.draftTitle}</h2><p className="intro-copy">{text.draftHint}</p><label className="field-label" htmlFor="draft-text">{text.draftTitle}</label><textarea id="draft-text" className="draft-input" value={draft} onChange={(event) => setDraft(event.target.value)} maxLength={6000} rows={7} />{text.stars && <p className="honesty-hint">{text.stars}</p>}{notice && <p className="message message-success" role="status">{notice}</p>}<div className="result-actions"><button className="button button-primary google-link" type="button" onClick={() => void copyDraftAndOpenMaps()}>{text.copyOpen}<span aria-hidden="true">↗</span></button></div></section>}
