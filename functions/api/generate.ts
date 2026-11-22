@@ -91,19 +91,6 @@ const topicMatchers: Array<[Topic, RegExp]> = [
   ["location", /location|parking|access|area|place|जगह|स्थान|पार्किंग|आसपास/i],
   ["overall", /overall|visit|recommend|विजिट|कुल मिलाकर|overall/i],
 ];
-const englishPhrases: Record<Topic, Record<"Good" | "Average" | "Bad", string[]>> = {
-  food: { Good: ["The food was delicious", "I really enjoyed the food", "The meal was a highlight"], Average: ["The food was decent", "The meal was fine, though not especially memorable", "The food was okay overall"], Bad: ["The food could have been better", "I was disappointed with the food", "The meal missed the mark for me"] },
-  service: { Good: ["The service was attentive", "I had a smooth experience with the service", "The service made the visit pleasant"], Average: ["The service was alright", "The service was okay, with room to improve", "The service was fairly ordinary"], Bad: ["The service needs some attention", "I was let down by the service", "The service made the visit less enjoyable"] },
-  staff: { Good: ["The staff were welcoming", "The team made me feel well looked after", "I had a pleasant interaction with the staff"], Average: ["The staff were fine", "The interaction with the team was fairly straightforward", "The staff experience was okay"], Bad: ["The staff interaction could have been better", "I did not feel well looked after", "The team left me disappointed"] },
-  cleanliness: { Good: ["The place was clean and well kept", "I appreciated how tidy everything was", "The cleanliness stood out in a good way"], Average: ["The place was reasonably clean", "The cleanliness was acceptable", "There is a little room to improve the upkeep"], Bad: ["The cleanliness needs improvement", "The space did not feel as clean as I expected", "The upkeep was disappointing"] },
-  value: { Good: ["It felt like good value for the price", "I thought the price was fair for what I got", "The experience felt worth the cost"], Average: ["The value was about average", "The price felt reasonable, though not a standout", "It was okay for the cost"], Bad: ["It did not feel worth the price", "I found the value disappointing", "The cost was hard to justify for my experience"] },
-  speed: { Good: ["Everything was handled promptly", "I did not have to wait long", "Things moved along smoothly"], Average: ["The wait was manageable", "The timing was about average", "Things took a little longer than expected"], Bad: ["The wait was longer than I expected", "Things moved more slowly than they should have", "The delay affected my experience"] },
-  ambience: { Good: ["The atmosphere was comfortable", "I liked the feel of the place", "The setting made the visit enjoyable"], Average: ["The atmosphere was pleasant enough", "The setting was fine, if unremarkable", "The ambience was about what I expected"], Bad: ["The atmosphere was not very comfortable", "The setting could use some improvement", "The ambience detracted from the visit"] },
-  product: { Good: ["I was happy with the quality", "The product quality impressed me", "The quality was a strong point"], Average: ["The quality was acceptable", "The product was okay overall", "The quality was fairly average"], Bad: ["The quality fell short of what I expected", "I was disappointed with the product", "The quality needs improvement"] },
-  location: { Good: ["The location was convenient", "It was easy to get to", "The location worked well for me"], Average: ["The location was alright", "Getting there was manageable", "The location was fine, though not especially convenient"], Bad: ["The location was inconvenient for me", "Getting there was harder than expected", "The location did not work well for my visit"] },
-  overall: { Good: ["Overall, I had a good experience", "I left happy with my visit", "I would happily come back"], Average: ["Overall, it was an okay experience", "My visit was fine, with a few things that could be better", "It was a mixed experience for me"], Bad: ["Overall, I left disappointed", "My visit did not meet expectations", "There is quite a bit of room for improvement"] },
-  general: { Good: ["That part of the visit worked well", "I was pleased with that part of the experience", "That was a positive part of my visit"], Average: ["That part was fine overall", "It was an ordinary part of the experience", "There is some room to improve that part"], Bad: ["That part of the experience disappointed me", "That could use some improvement", "That part did not work well for me"] },
-};
 const hindiPhrases: Record<Topic, Record<"Good" | "Average" | "Bad", string[]>> = {
   food: { Good: ["खाना स्वादिष्ट था", "मुझे खाना बहुत पसंद आया", "खाने का स्वाद अच्छा था"], Average: ["खाना ठीक था", "खाना अच्छा था, पर खास नहीं", "खाने का अनुभव औसत रहा"], Bad: ["खाना मेरी उम्मीद के मुताबिक नहीं था", "खाने में सुधार की गुंजाइश है", "मुझे खाना पसंद नहीं आया"] },
   service: { Good: ["सेवा अच्छी और ध्यान देने वाली थी", "सेवा से मेरा अनुभव बेहतर रहा", "मुझे अच्छी सेवा मिली"], Average: ["सेवा ठीक थी", "सेवा में थोड़ा सुधार हो सकता है", "सेवा का अनुभव सामान्य रहा"], Bad: ["सेवा से मैं निराश हुआ", "सेवा में सुधार की जरूरत है", "सेवा का अनुभव अच्छा नहीं रहा"] },
@@ -136,6 +123,60 @@ function topicFor(question: Question): Topic {
   return match?.[0] ?? "general";
 }
 function tidyAnswer(value: string) { return value.replace(/[\r\n]+/g, " ").replace(/\s+/g, " ").trim().replace(/[.!?]+$/, ""); }
+function focusForQuestion(question: Question) {
+  const text = question.text.replace(/[?!.,:;]+/g, " ").replace(/\s+/g, " ").trim();
+  const knownFocuses = [
+    /overall experience|overall visit/i, /value for money/i, /customer service/i, /food quality/i, /waiting time|wait time/i,
+    /cleanliness|hygiene/i, /ambience|atmosphere|environment/i, /service|hospitality|support/i, /staff|team|employees?/i,
+    /food|meal|dish|taste|flavou?r|menu|drink|coffee|momos?/i, /price|cost|value|money/i, /wait|speed|delivery|time/i,
+    /product|quality|purchase|item|selection/i, /location|parking|access|area/i, /recommend(?:ation)?/i,
+  ];
+  for (const pattern of knownFocuses) {
+    const match = text.match(pattern);
+    if (match) return match[0].toLowerCase();
+  }
+  const stopWords = new Set("how what which when where why was were is are did do does you your our the a an and of for to with in on at during about please rate describe tell me think feel felt would could should this that".split(" "));
+  const words = text.toLowerCase().split(/\s+/).filter((word) => !stopWords.has(word));
+  return words.slice(0, 3).join(" ") || "overall experience";
+}
+function ratingSentiment(value: string): "Good" | "Average" | "Bad" | null {
+  const normalized = value.toLowerCase();
+  if (["excellent", "very good", "good"].includes(normalized)) return "Good";
+  if (["poor", "bad", "very poor"].includes(normalized)) return "Bad";
+  if (["average", "okay", "ok", "neutral"].includes(normalized)) return "Average";
+  return null;
+}
+function englishRatingPhrase(focus: string, value: string) {
+  const subject = `the ${focus}`;
+  if (value.toLowerCase() === "excellent") return pick([
+    `I was especially impressed with ${subject}.`, `${capitalize(focus)} was a real highlight for me.`, `I really enjoyed ${subject}.`,
+  ]);
+  const sentiment = ratingSentiment(value);
+  if (sentiment === "Good") return pick([
+    `I was happy with ${subject}.`, `I really liked ${subject}.`, `${capitalize(focus)} stood out in a good way.`,
+  ]);
+  if (sentiment === "Bad") return pick([
+    `I was disappointed with ${subject}.`, `${capitalize(focus)} could have been better.`, `I wasn't fully satisfied with ${subject}.`,
+  ]);
+  return pick([
+    `My experience with ${subject} was fairly ordinary.`, `${capitalize(focus)} was okay overall, though it didn't stand out.`, `I had mixed feelings about ${subject}.`,
+  ]);
+}
+function capitalize(value: string) { return value ? value[0].toUpperCase() + value.slice(1) : value; }
+function englishOverallOpening(name: string, focus: string, value: string) {
+  const subject = focus.startsWith("the ") ? focus : `the ${focus}`;
+  const sentiment = ratingSentiment(value);
+  if (/overall experience|overall visit|experience|visit/i.test(focus)) {
+    if (value.toLowerCase() === "excellent") return pick([`My overall experience at ${name} was excellent.`, `I had an excellent visit to ${name}.`, `I really enjoyed my time at ${name}.`]);
+    if (sentiment === "Good") return pick([`My overall experience at ${name} was good.`, `I had a really nice visit to ${name}.`, `I enjoyed my visit to ${name}.`]);
+    if (sentiment === "Bad") return pick([`My overall experience at ${name} was disappointing.`, `I left ${name} disappointed.`, `My visit to ${name} fell short of what I expected.`]);
+    return pick([`My overall experience at ${name} was average.`, `My visit to ${name} was alright overall.`, `I had mixed feelings about my visit to ${name}.`]);
+  }
+  if (value.toLowerCase() === "excellent") return pick([`I was especially impressed with ${subject} at ${name}.`, `${capitalize(focus)} was a highlight of my visit to ${name}.`]);
+  if (sentiment === "Good") return pick([`I was pleased with ${subject} at ${name}.`, `I had a good experience with ${subject} at ${name}.`]);
+  if (sentiment === "Bad") return pick([`I was disappointed with ${subject} at ${name}.`, `${capitalize(focus)} at ${name} could have been better.`]);
+  return pick([`My experience with ${subject} at ${name} was fairly ordinary.`, `${capitalize(focus)} at ${name} was okay, though it didn't stand out.`]);
+}
 function composeReview(page: PublicPage, questions: Question[], answers: Answer[], language: Language) {
   const primaryRating = answers.find((answer) => {
     const question = questions.find((item) => item.id === answer.questionId);
@@ -144,44 +185,35 @@ function composeReview(page: PublicPage, questions: Question[], answers: Answer[
   const phrases = answers.filter((answer) => answer !== primaryRating).map((answer) => {
     const question = questions.find((item) => item.id === answer.questionId)!;
     const detail = tidyAnswer(answer.value);
-    if (question.answer_type === "text") return detail;
-    const rating = detail.toLowerCase();
-    if (["good", "poor", "average", "excellent", "bad"].includes(rating)) {
-      const sentiment = rating === "good" || rating === "excellent" ? "Good" : rating === "poor" || rating === "bad" ? "Bad" : "Average";
-      const topic = topicFor(question);
-      const bank = language === "Hindi" ? hindiPhrases : language === "Hinglish" ? hinglishPhrases : englishPhrases;
+    const topic = topicFor(question);
+    const focus = focusForQuestion(question);
+    if (question.answer_type === "text") {
+      const statement = capitalize(detail);
+      if (language === "Hindi") return `एक बात जो मुझे याद रही: ${statement}।`;
+      if (language === "Hinglish") return `Ek baat jo mujhe yaad rahi: ${statement}.`;
+      return pick([`One detail that stuck with me: ${statement}.`, `I also noticed this: ${statement}.`]);
+    }
+    const sentiment = ratingSentiment(detail);
+    if (sentiment) {
+      if (language === "English") return englishRatingPhrase(focus, detail);
+      const bank = language === "Hindi" ? hindiPhrases : hinglishPhrases;
       return pick(bank[topic][sentiment]);
     }
     if (question.answer_type === "choice") {
-      if (language === "Hindi") return `मैंने ${detail} चुना`;
-      if (language === "Hinglish") return `Main ${detail} ke saath gaya`;
-      return `I went with ${detail}`;
+      if (language === "Hindi") return `मैंने ${focus} के लिए ${detail} चुना।`;
+      if (language === "Hinglish") return `Maine ${focus} ke liye ${detail} choose kiya.`;
+      return pick([`I chose ${detail} for ${focus}.`, `For ${focus}, I went with ${detail}.`, `${detail} was my choice for ${focus}.`]);
     }
-    const topic = topicFor(question);
-    const bank = language === "Hindi" ? hindiPhrases : language === "Hinglish" ? hinglishPhrases : englishPhrases;
-    return pick(bank[topic][answer.value as "Good" | "Average" | "Bad"]);
+    return detail;
   }).filter(Boolean);
   if (phrases.length === 0 && !primaryRating) return "";
-  const shuffled = [...phrases];
-  for (let index = shuffled.length - 1; index > 0; index--) {
-    const other = Math.floor(Math.random() * (index + 1));
-    [shuffled[index], shuffled[other]] = [shuffled[other], shuffled[index]];
-  }
   const name = page.business.name.trim();
   if (language === "English") {
-    const rating = primaryRating?.value.toLowerCase();
-    const openings = rating === "excellent"
-      ? [`I had an excellent visit to ${name}.`, `I really enjoyed my time at ${name}.`, `My experience at ${name} was excellent.`]
-      : rating === "good"
-        ? [`I had a good experience at ${name}.`, `I enjoyed my visit to ${name}.`, `I had a nice time at ${name}.`]
-        : rating === "average"
-          ? [`My visit to ${name} was alright overall.`, `I had an average experience at ${name}.`, `My experience at ${name} was mixed.`]
-          : rating === "poor" || rating === "bad"
-            ? [`I was disappointed with my visit to ${name}.`, `My experience at ${name} fell short of what I expected.`, `Unfortunately, I left disappointed after visiting ${name}.`]
-            : [`A few things stood out during my visit to ${name}.`, `Here are a few things from my visit to ${name}.`, ""];
-    let review = shuffled.join(". ");
-    const start = pick(openings);
-    if (start) review = review ? `${start} ${review}` : start;
+    const primaryQuestion = primaryRating && questions.find((question) => question.id === primaryRating.questionId);
+    const start = primaryRating && primaryQuestion
+      ? englishOverallOpening(name, focusForQuestion(primaryQuestion), primaryRating.value)
+      : pick([`A few things stood out during my visit to ${name}.`, `Here are a few things from my visit to ${name}.`, `During my visit to ${name}, I noticed a few things.`]);
+    let review = [start, ...phrases].filter(Boolean).join(" ");
     return `${review.replace(/\s+/g, " ").replace(/([.!?])\s*([a-z])/g, (_m, p, c) => `${p} ${c.toUpperCase()}`).replace(/[.!?]*$/, ".")}`.slice(0, 6000);
   }
   const separator = language === "Hindi" ? "। " : ". ";
@@ -198,7 +230,7 @@ function composeReview(page: PublicPage, questions: Question[], answers: Answer[
           : rating === "poor" || rating === "bad" ? [`${name} mein mera experience disappointing raha.`, `${name} se mujhe better experience ki expectation thi.`]
             : [`${name} mein mera experience aisa raha:`, "Overall, "];
   const start = pick(opening);
-  const details = shuffled.length ? `${start ? `${start} ` : ""}${shuffled.join(separator)}${language === "Hindi" ? "।" : "."}` : start;
+  const details = phrases.length ? `${start ? `${start} ` : ""}${phrases.join(separator)}${language === "Hindi" ? "।" : "."}` : start;
   return details.slice(0, 6000);
 }
 
