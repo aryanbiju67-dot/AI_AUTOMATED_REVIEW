@@ -6,7 +6,6 @@ dist/
 dist-dev/
 coverage/
 output/qr/
-legacy-archive/
 .env*
 !.env.example
 .dev.vars

@@ -1,34 +1,50 @@
-# Review QR architecture
+# Architecture
 
-## Runtime
+## Components
 
-- React, TypeScript, and Vite build the owner workspace and public customer form.
-- Cloudflare Pages serves the app and the `/api/*` Pages Functions.
-- Supabase Auth and Postgres hold owner accounts, business settings, question definitions, and active QR tokens. Row-level security protects owner data.
-- Public QR tokens are random values. Only their SHA-256 hashes are used to resolve a business page on the server.
-- Review drafts are composed locally in a server function from validated answers. Phrase banks vary the wording for common topics in English, Hindi, and Hinglish; customer-written details are included verbatim. No AI provider or per-business prompt is required.
+```text
+Browser (React + Vite)
+  ├─ owner sign-in and dashboard ── Supabase Auth + authenticated PostgREST/RPC
+  └─ customer QR flow ── GET /api/shop ── Supabase public-page RPC
+                      └─ POST /api/generate ── validate answers + compose draft
+
+Vercel production:     api/ handlers
+Cloudflare local/dev:  functions/api/ handlers
+```
+
+The two API directories implement the same HTTP behavior for the app's two supported runtimes. Keep them in sync when changing an endpoint: Vercel loads `api/`, while `npm run dev` runs Cloudflare Pages Functions from `functions/` through Wrangler.
 
 ## Owner flow
 
-1. The configured super-admin email signs in through Supabase Auth. A server function verifies the account and claims the initial admin record once.
-2. The super admin creates multiple businesses from the left sidebar. Each business has its own questions and QR code.
-3. The admin can edit business details and up to twenty questions in one vertically stacked editor. Each question can be required or optional and can use a rating, owner-defined choices, or a brief written response.
-4. The admin downloads a QR image for the selected business. Rotating the QR disables the previous token.
+1. The browser signs in with Supabase Auth and asks `POST /api/admin/claim` to verify the session and account. No public account-registration interface exists.
+2. The server verifies the confirmed email against the fixed super-admin allowlist and uses a server-only Supabase secret to claim the admin record.
+3. Owner actions use authenticated Supabase RPCs and row-level security to create and manage businesses, questions, and QR tokens.
+4. Each business QR contains a random token. The database stores its SHA-256 hash for public lookup and the raw token for the owner's QR link.
 
-## Customer flow and privacy
+## Customer flow
 
-1. `/r/{token}` requests the active public page from a server function.
-2. Customers answer the active questions on one page. The browser sends only those answers and the QR token to `/api/generate`.
-3. The server reloads the questions from Supabase and validates the required fields and allowed answer values. It does not trust client-side validation.
-4. Answers and generated review text are not inserted into the app database or sent to an AI provider. The server uses answers only to compose the response for that request.
-5. Customers may edit and copy the draft or copy it while opening the business's Google Maps link. They choose their own stars and submit manually.
+1. `/r/{token}` loads the static Vite app. The app requests `/api/shop?token=...` for the public business details and enabled questions.
+2. The customer submits answers and an optional Turnstile response to `POST /api/generate`.
+3. The server resolves the QR token again, reloads the active questions, validates required answers and allowed choices, then composes the draft with the local phrase generator.
+4. The browser presents the editable draft, copies it when permitted, and opens the configured Google review link. The customer chooses a rating and posts manually.
 
-## Secrets
+## Data and privacy boundaries
 
-- Browser: Supabase project URL and publishable key only.
-- Server: Supabase secret key and optional Turnstile secret in `.dev.vars` locally or Cloudflare Pages secrets in production.
-- Never put server secrets in `VITE_` or `NEXT_PUBLIC_` variables.
+- Supabase stores owner accounts, business configuration, question definitions, and QR data.
+- Submitted customer answers and generated review drafts are not written to app tables or sent to an AI provider. API responses use `Cache-Control: no-store`.
+- Public business configuration is cached briefly by the shop endpoint. Do not cache generated drafts or answer submissions.
+- Validate customer answers against database questions on the server; browser validation is only for usability.
+- Supabase secret keys, the configured admin email, and Turnstile secrets stay server-side. Only the Supabase URL/publishable key and optional Turnstile site key are client build values.
+- The Google action opens the business link only. The app must not select stars or submit a review for the customer.
 
-## Current MVP boundaries
+## Deployment and configuration
 
-There is no payment flow, branch management, automated posting, review gating, saved customer answers, or saved review drafts. Set up Cloudflare rate limiting on `/api/generate` before a public pilot. Turnstile reduces automated abuse but does not enforce a strict hourly usage quota.
+Vercel production uses the root `api/` functions and `vercel.json`. The Cloudflare adapter under `functions/` supports the Wrangler local environment and optional Pages deployment. Shared UI and review behavior live in `src/` and both API adapters.
+
+See [README.md](./README.md) for required variables and deployment instructions. See [BUILD_GUIDE.md](./BUILD_GUIDE.md) for initial Supabase setup.
+
+## Current boundaries
+
+The app does not offer billing, user invitations, automated review posting, review gating, or stored customer submissions. Review wording comes from a deterministic local phrase bank and can repeat; it is not generative AI. The application has no usage count cap, while infrastructure providers can still enforce their own quotas and abuse controls.
+
+The initial Supabase migration includes legacy tables and RPCs from earlier iterations. They are retained in the migration history so existing installations can be upgraded consistently. Review the live database and back up any data before removing or changing schema through a new migration.
