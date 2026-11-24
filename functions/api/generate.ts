@@ -67,103 +67,209 @@ function validateAnswers(value: unknown, questions: Question[]): Answer[] | null
   }
   return answers;
 }
-type ReviewField = "experience" | "ambience" | "service" | "quality" | "pricing" | "recommend";
+type ReviewField = "experience" | "ambience" | "service" | "quality" | "pricing" | "recommend" | "general";
+type Tone = "excellent" | "positive" | "average" | "negative";
 function pick<T>(items: T[]): T { return items[Math.floor(Math.random() * items.length)]; }
-function fieldForQuestion(question: Question): ReviewField | null {
+function fieldForQuestion(question: Question): ReviewField {
   const text = question.text.toLowerCase();
-  if (/recommend|would you suggest/.test(text)) return "recommend";
+  if (/recommend|suggest/.test(text)) return "recommend";
   if (/pricing|price|cost|value for money|afford/.test(text)) return "pricing";
-  if (/ambience|ambiance|environment|atmosphere/.test(text)) return "ambience";
-  if (/quality|product|food|meal|dish/.test(text)) return "quality";
-  if (/service|staff|team|hospitality/.test(text)) return "service";
+  if (/ambience|ambiance|environment|atmosphere|decor|seating/.test(text)) return "ambience";
+  if (/quality|product|food|meal|dish|taste|flavou?r|menu|drink/.test(text)) return "quality";
+  if (/service|staff|team|hospitality|support/.test(text)) return "service";
   if (/overall|experience|visit/.test(text)) return "experience";
+  return "general";
+}
+function focusForQuestion(question: Question) {
+  const text = question.text.replace(/[?!.,:;]+/g, " ").replace(/\s+/g, " ").trim();
+  const known = [
+    /value for money/i, /customer service/i, /overall experience/i, /food quality/i, /waiting time|wait time/i,
+    /cleanliness|hygiene/i, /ambience|ambiance|atmosphere|environment|decor|seating/i,
+    /service|hospitality|support/i, /staff|team|employees?/i, /food|meal|dish|taste|flavou?r|menu|drink|coffee|momos?/i,
+    /pricing|price|cost|value/i, /wait|speed|delivery|time/i, /product|quality|purchase|item|selection/i,
+    /location|parking|access|area/i, /recommend(?:ation)?/i,
+  ];
+  for (const pattern of known) {
+    const match = text.match(pattern);
+    if (match) return match[0].toLowerCase();
+  }
+  const stopWords = new Set("how what which when where why was were is are did do does you your our the a an and of for to with in on at during about please rate tell me think feel felt would could should this that".split(" "));
+  const words = text.toLowerCase().split(/\s+/).filter((word) => !stopWords.has(word));
+  return words.slice(0, 3).join(" ") || "overall experience";
+}
+function toneForAnswer(value: string): Tone | null {
+  const normalized = value.trim().toLowerCase();
+  if (["excellent", "outstanding", "exceptional"].includes(normalized)) return "excellent";
+  if (["very good", "good", "great", "positive", "satisfied", "affordable", "great value for money"].includes(normalized)) return "positive";
+  if (["average", "okay", "ok", "fair", "neutral", "not applicable"].includes(normalized)) return "average";
+  if (["poor", "bad", "very poor", "negative", "unsatisfied", "expensive"].includes(normalized)) return "negative";
   return null;
 }
-function composeReview(page: PublicPage, questions: Question[], answers: Answer[], _language: Language) {
-  const selections: Partial<Record<ReviewField, string>> = {};
-  const additional: string[] = [];
-  for (const answer of answers) {
-    const question = questions.find((item) => item.id === answer.questionId);
-    if (!question) continue;
-    if (question.answer_type === "text") {
-      if (answer.value.trim()) additional.push(answer.value.trim());
-      continue;
-    }
-    const field = fieldForQuestion(question);
-    const value = answer.value.trim();
-    const ratingValue = ["Poor", "Average", "Good", "Very good", "Excellent"].includes(value) || (field === "quality" && value === "Not applicable");
-    const pricingValue = ["Expensive", "Fair", "Affordable", "Great value for money"].includes(value);
-    const recommendationValue = ["Yes", "Maybe", "No"].includes(value);
-    const matchesSourceQuestion = question.answer_type === "rating"
-      ? Boolean(field && field !== "pricing" && field !== "recommend" && ratingValue)
-      : field === "pricing" ? pricingValue
-        : field === "recommend" ? recommendationValue
-          : Boolean(field && ["experience", "ambience", "service", "quality"].includes(field) && ratingValue);
-    if (field && matchesSourceQuestion && selections[field] === undefined) selections[field] = value;
+function chooseUnused(pool: string[], used: Set<string>) {
+  const available = pool.filter((phrase) => !used.has(phrase));
+  const phrase = pick(available.length ? available : pool);
+  used.add(phrase);
+  return phrase;
+}
+function sentenceForRating(focus: string, value: string, used: Set<string>) {
+  const subject = `the ${focus}`;
+  const pools: Record<Tone, string[]> = {
+    excellent: [
+      `I was especially impressed by ${subject}.`, `${capitalize(focus)} was a real highlight of my visit.`,
+      `I particularly enjoyed ${subject}.`, `The ${focus} exceeded what I expected.`,
+      `I came away really pleased with ${subject}.`, `I couldn't have asked for more from ${subject}.`,
+      `One of the best parts of my visit was ${subject}.`, `I thought ${subject} was outstanding.`,
+      `${capitalize(focus)} made a great impression on me.`, `I left with a very positive impression of ${subject}.`,
+      `I was genuinely impressed with ${subject}.`, `I enjoyed every part of ${subject}.`,
+    ],
+    positive: [
+      `I really liked ${subject}.`, `I was happy with ${subject}.`, `${capitalize(focus)} stood out in a good way.`,
+      `I had a good experience with ${subject}.`, `I enjoyed ${subject}.`, `I appreciated ${subject}.`,
+      `${capitalize(focus)} left a good impression on me.`, `I came away pleased with ${subject}.`,
+      `I thought ${subject} was handled well.`, `I was glad to see ${subject} done well.`,
+      `I found ${subject} enjoyable.`, `I was satisfied with ${subject}.`,
+    ],
+    average: [
+      `My experience with ${subject} was fairly ordinary.`, `${capitalize(focus)} was okay overall, though nothing especially stood out.`,
+      `I had mixed feelings about ${subject}.`, `${capitalize(focus)} was fine, but not particularly memorable.`,
+      `I thought ${subject} was acceptable.`, `There was nothing especially remarkable about ${subject}.`,
+      `${capitalize(focus)} met the basic expectation, but didn't stand out.`, `I found ${subject} just average overall.`,
+      `It was an alright experience with ${subject}.`, `${capitalize(focus)} was neither a highlight nor a major issue for me.`,
+      `I was reasonably okay with ${subject}.`, `My impression of ${subject} was somewhere in the middle.`,
+    ],
+    negative: [
+      `I was disappointed with ${subject}.`, `${capitalize(focus)} fell short of what I hoped for.`,
+      `${capitalize(focus)} could have been better.`, `I wasn't very satisfied with ${subject}.`,
+      `I expected more from ${subject}.`, `${capitalize(focus)} was the weakest part of my visit.`,
+      `I left wishing ${subject} had been better.`, `I didn't have a good experience with ${subject}.`,
+      `Unfortunately, ${subject} let me down.`, `${capitalize(focus)} didn't meet my expectations.`,
+      `I found ${subject} disappointing.`, `There is room for improvement in ${focus}.`,
+    ],
+  };
+  const tone = toneForAnswer(value) ?? "average";
+  return chooseUnused(pools[tone], used);
+}
+function capitalize(value: string) { return value ? value[0].toUpperCase() + value.slice(1) : value; }
+function openingFor(name: string, value: string, used: Set<string>) {
+  const tone = toneForAnswer(value) ?? "average";
+  const pools: Record<Tone, string[]> = {
+    excellent: [
+      `I had an excellent overall experience at ${name}.`, `I really enjoyed my visit to ${name}.`,
+      `My visit to ${name} was a great one.`, `I had a wonderful time at ${name}.`,
+      `${name} made a very positive impression on me.`, `I left ${name} feeling very pleased with my visit.`,
+      `I had a thoroughly enjoyable visit to ${name}.`, `My experience at ${name} was excellent from start to finish.`,
+      `I was really impressed by my visit to ${name}.`, `I would gladly visit ${name} again.`,
+      `I had a lovely experience at ${name}.`, `Visiting ${name} was a real pleasure.`,
+    ],
+    positive: [
+      `I had a good experience at ${name}.`, `I enjoyed my visit to ${name}.`,
+      `I had a nice time at ${name}.`, `My visit to ${name} went well.`,
+      `${name} left me with a positive impression.`, `I was pleased with my visit to ${name}.`,
+      `I had a pleasant experience at ${name}.`, `It was nice spending time at ${name}.`,
+      `I came away happy with my visit to ${name}.`, `Overall, I enjoyed being at ${name}.`,
+      `My time at ${name} was enjoyable.`, `I was glad I stopped by ${name}.`,
+    ],
+    average: [
+      `My visit to ${name} was alright overall.`, `I had an average experience at ${name}.`,
+      `My experience at ${name} was mixed.`, `I thought my visit to ${name} was okay.`,
+      `My time at ${name} was fairly ordinary.`, `Overall, my visit to ${name} was fine, though not memorable.`,
+      `I had a middle-of-the-road experience at ${name}.`, `My visit to ${name} was neither great nor terrible.`,
+      `${name} was okay for a visit, but didn't really stand out to me.`, `I left with mixed feelings about ${name}.`,
+      `My experience at ${name} was decent overall.`, `I found my visit to ${name} acceptable.`,
+    ],
+    negative: [
+      `I was disappointed with my visit to ${name}.`, `My experience at ${name} fell short of what I expected.`,
+      `Unfortunately, my visit to ${name} wasn't a great one.`, `I left ${name} feeling let down.`,
+      `My visit to ${name} could have gone better.`, `I didn't enjoy my experience at ${name} as much as I hoped.`,
+      `I had a frustrating visit to ${name}.`, `My time at ${name} was disappointing overall.`,
+      `I expected a better experience at ${name}.`, `I left ${name} wishing the visit had gone differently.`,
+      `My experience at ${name} wasn't what I had hoped for.`, `I can't say my visit to ${name} was satisfying.`,
+    ],
+  };
+  return chooseUnused(pools[tone], used);
+}
+function sentencesForChoice(question: Question, answer: string, used: Set<string>) {
+  const focus = focusForQuestion(question);
+  const normalized = answer.trim();
+  const optionTone = toneForAnswer(normalized);
+  if (optionTone) return sentenceForRating(focus, normalized, used);
+  const pools = [
+    `I chose ${normalized} for ${focus}.`, `For ${focus}, I went with ${normalized}.`,
+    `${normalized} was my choice for ${focus}.`, `When it came to ${focus}, I picked ${normalized}.`,
+    `I decided on ${normalized} for ${focus}.`, `I went with ${normalized} when choosing ${focus}.`,
+  ];
+  return chooseUnused(pools, used);
+}
+function sentenceForText(value: string, used: Set<string>) {
+  const text = value.replace(/[\r\n]+/g, " ").replace(/\s+/g, " ").trim();
+  if (!text) return "";
+  const normalized = text[0].toUpperCase() + text.slice(1);
+  const sentence = /[.!?]$/.test(normalized) ? normalized : `${normalized}.`;
+  const wrappers = [sentence, `One thing I wanted to mention: ${sentence}`, `A detail I remember is this: ${sentence}`, `I also noticed this: ${sentence}`];
+  return chooseUnused(wrappers, used);
+}
+function sentenceForAnswer(question: Question, value: string, used: Set<string>) {
+  const field = fieldForQuestion(question);
+  const focus = focusForQuestion(question);
+  const normalized = value.trim();
+  const tone = toneForAnswer(normalized);
+  if (field === "recommend") {
+    const response = normalized.toLowerCase();
+    if (["yes", "definitely", "certainly"].includes(response)) return chooseUnused([
+      "I would recommend this place to others.", "I'd be happy to recommend this place.",
+      `I would gladly suggest ${question.text.toLowerCase().includes("business") ? "this business" : "this place"} to someone else.`,
+      "Based on my visit, I would recommend giving this place a try.",
+    ], used);
+    if (["maybe", "not sure", "unsure"].includes(response)) return chooseUnused([
+      "I might recommend it, depending on what someone is looking for.", "I am on the fence about recommending this place.",
+      "I could see recommending it to some people, though I'm not certain.",
+    ], used);
+    if (["no", "not really", "definitely not"].includes(response)) return chooseUnused([
+      "I wouldn't recommend it based on my experience.", "I don't think I would recommend this place.",
+      "My visit didn't leave me confident recommending it to others.",
+    ], used);
   }
+  if (field === "pricing") {
+    const pricePhrases: Record<string, string[]> = {
+      expensive: ["I found the pricing a little high.", "The prices felt a bit steep to me.", "I thought it was on the expensive side.", "The cost was more than I expected.", "I wasn't fully convinced by the value for the price."],
+      fair: ["The pricing seemed fair.", "I thought the prices were reasonable.", "The cost felt about right for what I got.", "I found the pricing pretty balanced.", "The value felt fair overall."],
+      affordable: ["I found the pricing affordable.", "The prices felt reasonable to me.", "I thought it was good value for the cost.", "The cost felt manageable.", "I was happy with the value for the price."],
+      "great value for money": ["I thought it offered great value for money.", "The price felt well worth it to me.", "I was impressed by the value for the cost.", "I felt I got a lot for the price.", "The value for money was a real plus."],
+    };
+    const pricePhrase = pricePhrases[normalized.toLowerCase()];
+    if (pricePhrase) return chooseUnused(pricePhrase, used);
+  }
+  if (tone) return sentenceForRating(focus, normalized, used);
+  if (question.answer_type === "choice") return sentencesForChoice(question, normalized, used);
+  const valueSentence = normalized[0].toUpperCase() + normalized.slice(1);
+  return /[.!?]$/.test(valueSentence) ? valueSentence : `${valueSentence}.`;
+}
+function composeReview(page: PublicPage, questions: Question[], answers: Answer[], _language: Language) {
+  const used = new Set<string>();
+  const answerByQuestion = new Map(answers.map((answer) => [answer.questionId, answer]));
+  const primary = answers.find((answer) => {
+    const question = questions.find((item) => item.id === answer.questionId);
+    return question?.required && question.answer_type === "rating" && fieldForQuestion(question) === "experience";
+  });
   const name = page.business.name.trim();
-  const experience = selections.experience;
-  const requiredOpening = experience ? [`My experience at ${name} was ${experience.toLowerCase()}.`] : [];
-  const openings = [
-    `I recently visited ${name} and wanted to share my experience.`,
-    ...requiredOpening,
-    `I had the opportunity to visit ${name} and here's my feedback.`,
-  ];
-  const positiveAmbience = [
-    "The atmosphere was pleasant.",
-    "I enjoyed the overall environment.",
-    "The ambience added to my experience.",
-  ];
-  const negativeAmbience = [
-    "The ambience could use some improvement.",
-    "The environment wasn't quite what I expected.",
-    "There is some room for improvement in the atmosphere.",
-  ];
-  const positiveService = [
-    "The service was impressive.",
-    "I appreciated the attention and service.",
-    "The staff experience was a highlight.",
-  ];
-  const negativeService = [
-    "The service could have been better.",
-    "There is room for improvement in the service.",
-    "I felt the service could have been more attentive.",
-  ];
-  const positiveQuality = [
-    "I was happy with the quality.",
-    "The quality met my expectations.",
-    "I enjoyed the quality of the offering.",
-  ];
-  const negativeQuality = [
-    "The quality could be improved.",
-    "I expected a little more in terms of quality.",
-    "There is room for improvement in this area.",
-  ];
-  const pricingText: Record<string, string> = {
-    Expensive: "I found the pricing a little on the expensive side.",
-    Fair: "The pricing seemed fair.",
-    Affordable: "I found the pricing affordable.",
-    "Great value for money": "I thought it offered great value for money.",
-  };
-  const recommendationText: Record<string, string> = {
-    Yes: "I would recommend giving this place a visit.",
-    Maybe: "I might consider visiting again.",
-    No: "Based on my experience, I wouldn't recommend it at this point.",
-  };
-  const review: string[] = [pick(openings)];
-  const ambience = selections.ambience;
-  if (ambience === "Poor" || ambience === "Average") review.push(pick(negativeAmbience));
-  else if (ambience && ambience !== "Not applicable") review.push(pick(positiveAmbience));
-  const service = selections.service;
-  if (service) review.push(service === "Poor" || service === "Average" ? pick(negativeService) : pick(positiveService));
-  const quality = selections.quality;
-  if (quality && quality !== "Not applicable") review.push(quality === "Poor" || quality === "Average" ? pick(negativeQuality) : pick(positiveQuality));
-  const pricing = selections.pricing;
-  if (pricing && pricingText[pricing]) review.push(pricingText[pricing]);
-  const recommendation = selections.recommend;
-  if (recommendation && recommendationText[recommendation]) review.push(recommendationText[recommendation]);
-  review.push(...additional);
-  return review.filter(Boolean).join(" ").slice(0, 6000);
+  const intro = primary
+    ? openingFor(name, primary.value, used)
+    : chooseUnused([
+      `I recently visited ${name} and wanted to share a few thoughts.`, `I stopped by ${name} and have a few things to share.`,
+      `Here are some thoughts from my visit to ${name}.`, `I wanted to share a little about my visit to ${name}.`,
+      `My visit to ${name} left me with a few thoughts.`, `I recently had a chance to visit ${name}.`,
+    ], used);
+  const review: string[] = [intro];
+  for (const question of questions) {
+    const answer = answerByQuestion.get(question.id);
+    if (!answer || answer === primary) continue;
+    if (answer.value.trim().toLowerCase() === "not applicable") continue;
+    const sentence = question.answer_type === "text"
+      ? sentenceForText(answer.value, used)
+      : sentenceForAnswer(question, answer.value, used);
+    if (sentence) review.push(sentence);
+  }
+  return review.join(" ").slice(0, 6000);
 }
 export async function onRequestPost({ request, env }: PagesContext) {
   const origin = request.headers.get("Origin");
