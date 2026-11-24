@@ -4,8 +4,8 @@ interface Env {
 }
 interface PagesContext { request: Request; env: Env }
 
-function json(body: unknown, status = 200) {
-  return Response.json(body, { status, headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" } });
+function json(body: unknown, status = 200, cacheControl = "no-store") {
+  return Response.json(body, { status, headers: { "Cache-Control": cacheControl, "X-Content-Type-Options": "nosniff" } });
 }
 
 async function sha256(value: string) {
@@ -36,7 +36,7 @@ export async function onRequestGet({ request, env }: PagesContext) {
     if (!response.ok) return json({ error: "The business page could not be loaded." }, 503);
     const data = await response.json() as { business?: { id: string; name: string; category: string; welcome_message: string; brand_color: string; google_review_url: string }; questions?: Array<{ id: string; text: string; required: boolean; answer_type: "rating" | "choice" | "text"; options: string[] }> } | null;
     if (!data?.business || !Array.isArray(data.questions) || !data.questions.length) return json({ error: "This QR code is not active." }, 404);
-    return json({ business: data.business, questions: data.questions });
+    return json({ business: data.business, questions: data.questions }, 200, "public, s-maxage=15, stale-while-revalidate=60");
   } catch {
     return json({ error: "The business page could not be loaded. Please try again." }, 503);
   }

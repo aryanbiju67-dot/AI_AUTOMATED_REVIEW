@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
-import OwnerApp from "./OwnerApp";
+import { lazy, Suspense, useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
+
+const OwnerApp = lazy(() => import("./OwnerApp"));
 
 type Language = "English" | "Hindi" | "Hinglish";
 type Question = { id: string; text: string; required: boolean; answer_type: "rating" | "choice" | "text"; options: string[] };
@@ -173,5 +174,5 @@ function CustomerReview({ token }: { token: string }) {
 export default function App() {
   const token = getToken();
   if (token) return <CustomerReview token={token} />;
-  return <OwnerApp />;
+  return <Suspense fallback={<main className="page-shell"><section className="card inactive-card" role="status">Loading dashboard…</section></main>}><OwnerApp /></Suspense>;
 }

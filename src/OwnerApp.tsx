@@ -47,6 +47,7 @@ export default function OwnerApp() {
   const selectedIdRef = useRef("");
   const [business, setBusiness] = useState<Business>(blankBusiness);
   const latestBusinessRef = useRef<Business>(blankBusiness());
+  const adminClaimedRef = useRef(false);
   const [questions, setQuestions] = useState<Question[]>(defaultQuestions);
   const [qrToken, setQrToken] = useState("");
   const [qrImage, setQrImage] = useState("");
@@ -83,9 +84,12 @@ export default function OwnerApp() {
     if (!current) { setSession(null); setLoading(false); return; }
     setSession(current); setLoading(true); setError("");
     try {
-      const claimResponse = await fetch("/api/admin/claim", { method: "POST", headers: { Authorization: `Bearer ${current.access_token}` } });
-      const claim = await claimResponse.json() as { error?: string };
-      if (!claimResponse.ok) throw new Error(claim.error || "Could not verify admin access.");
+      if (!adminClaimedRef.current) {
+        const claimResponse = await fetch("/api/admin/claim", { method: "POST", headers: { Authorization: `Bearer ${current.access_token}` } });
+        const claim = await claimResponse.json() as { error?: string };
+        if (!claimResponse.ok) throw new Error(claim.error || "Could not verify admin access.");
+        adminClaimedRef.current = true;
+      }
       const memberships = await supabaseRest<Array<{ business_id: string }>>(`business_users?user_id=eq.${encodeURIComponent(current.user.id)}&role=eq.owner&select=business_id&order=created_at.asc`);
       const loaded = await Promise.all(memberships.map(async ({ business_id }) => {
         const id = encodeURIComponent(business_id);
@@ -175,6 +179,7 @@ export default function OwnerApp() {
       const response = await fetch("/api/admin/claim", { method: "POST", headers: { Authorization: `Bearer ${next.access_token}` } });
       const result = await response.json() as { error?: string };
       if (!response.ok) { await signOut(); throw new Error(result.error || "This account is not allowed to access the admin workspace."); }
+      adminClaimedRef.current = true;
       setSession(next);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not sign in."); }
     finally { setBusy(false); }
@@ -247,7 +252,7 @@ export default function OwnerApp() {
     finally { setBusy(false); }
   }
 
-  async function logout() { await signOut(); setSession(null); setWorkspaces([]); activateWorkspace(undefined); }
+  async function logout() { adminClaimedRef.current = false; await signOut(); setSession(null); setWorkspaces([]); activateWorkspace(undefined); }
   function startNewBusiness() {
     if (business.id) void saveBusinessProfile(business, qrToken).catch(() => setError("The previous business details could not be saved."));
     activateWorkspace(undefined); setError(""); setNotice(""); setOpenBusinessMenu("");
