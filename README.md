@@ -116,7 +116,3 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md) for request flows, trust boundaries, an
 The customer endpoints reload business questions from Supabase and validate submitted answers on the server. The QR URL contains a random token; Supabase stores its hash for lookup. Customer answers are used only to produce the response and are not inserted into app tables, logged, or sent to an AI provider. The review text is a draft: customers should check it for accuracy and submit it themselves.
 
 There is no application-level review count cap. This is not a promise of unlimited infrastructure: Vercel, Cloudflare, Supabase, or network usage limits may apply. Add provider-level abuse controls and monitor usage before a large public launch.
-
-## License
-
-This project is distributed under the MIT License. See [LICENSE](./LICENSE).
