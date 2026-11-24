@@ -32,17 +32,6 @@ async function loadPublicPage(env: Env, token: string): Promise<PublicPage | nul
   if (!response.ok) return null;
   return await response.json() as PublicPage | null;
 }
-async function checkGenerationLimit(env: Env, token: string, request: Request) {
-  const ip = clientIp(request);
-  if (!ip || !env.SUPABASE_URL || !env.SUPABASE_SECRET_KEY) return false;
-  const bucketKey = await sha256(`${ip}:${token}`);
-  const response = await fetch(`${env.SUPABASE_URL.replace(/\/$/, "")}/rest/v1/rpc/check_public_rate_limit`, {
-    method: "POST", headers: supabaseServerHeaders(env.SUPABASE_SECRET_KEY),
-    body: JSON.stringify({ p_bucket_key: bucketKey, p_limit: 8, p_window_seconds: 3600 }), signal: AbortSignal.timeout(2500),
-  });
-  if (!response.ok) throw new Error("The review request limit could not be checked.");
-  return await response.json() === true;
-}
 async function verifyTurnstile(secret: string, token: string, request: Request) {
   if (!token || token.length > 2048) return false;
   const form = new URLSearchParams({ secret, response: token });
@@ -197,10 +186,6 @@ export async function onRequestPost({ request, env }: PagesContext) {
     ? await verifyTurnstile(env.TURNSTILE_SECRET_KEY, typeof input.turnstileToken === "string" ? input.turnstileToken : "", request)
     : true;
   if (env.TURNSTILE_SECRET_KEY && !verified) return json({ error: "Please complete the security check and try again." }, 403);
-  let withinLimit: boolean;
-  try { withinLimit = await checkGenerationLimit(env, input.token, request); }
-  catch { return json({ error: "Review drafts are temporarily unavailable. Please try again shortly." }, 503); }
-  if (!withinLimit) return json({ error: "Too many drafts were requested from this QR code. Please try again later." }, 429);
   return json({ draft: composeReview(page, page.questions, answers, language), source: "local", googleReviewUrl: page.business.google_review_url });
 }
 const vercelEnv: Env = {
