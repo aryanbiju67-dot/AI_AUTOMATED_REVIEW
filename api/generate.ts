@@ -97,6 +97,51 @@ function focusForQuestion(question: Question) {
   const words = text.toLowerCase().split(/\s+/).filter((word) => !stopWords.has(word));
   return words.slice(0, 3).join(" ") || "overall experience";
 }
+function topicsForQuestion(question: Question) {
+  const text = question.text.toLowerCase();
+  const topicMatchers: Array<[RegExp, string]> = [
+    [/\b(food|meal|dish|taste|flavou?r|menu|drink|coffee|momos?)\b/, "food"],
+    [/\b(service|hospitality|customer service|support)\b/, "service"],
+    [/\b(staff|team|employees?|server|waiter|waitress|stylist|barber|trainer|coach|instructor|mechanic|technician|doctor)\b/, "staff"],
+    [/\b(cleanliness|clean|hygiene|sanitation)\b/, "cleanliness"],
+    [/\b(ambience|ambiance|environment|atmosphere|decor|seating)\b/, "atmosphere"],
+    [/\b(pricing|price|cost|value for money|affordability)\b/, "value for money"],
+    [/\b(waiting time|wait time|wait|speed|delivery time)\b/, "wait time"],
+    [/\b(equipment|machines?|gym gear|apparatus)\b/, "equipment"],
+    [/\b(facilities|facility|amenities|premises|pool|court)\b/, "facilities"],
+    [/\b(products?|items?|selection|product quality|stock|range)\b/, "products"],
+    [/\b(location|parking|access|area)\b/, "location"],
+    [/\b(appointment|booking|reservation|schedule)\b/, "booking"],
+    [/\b(care|treatment|consultation|diagnosis)\b/, "care"],
+    [/\b(repair|workmanship|maintenance|installation)\b/, "work quality"],
+    [/\b(communication|response|information)\b/, "communication"],
+  ];
+  const found = topicMatchers.filter(([pattern]) => pattern.test(text)).map(([, topic]) => topic);
+  if (found.length) return [...new Set(found)];
+
+  const fallback = focusForQuestion(question).toLowerCase();
+  if (["general", "recommend", "recommendation", "experience", "overall experience", "visit", "stood out", "stand out"].includes(fallback)) return [];
+  return [fallback];
+}
+function topicsForBusiness(questions: Question[], primaryQuestionId: string) {
+  const topics = [...new Set(questions.filter((question) => question.id !== primaryQuestionId).flatMap(topicsForQuestion))];
+  for (let index = topics.length - 1; index > 0; index--) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [topics[index], topics[swapIndex]] = [topics[swapIndex], topics[index]];
+  }
+  return topics.slice(0, 3);
+}
+function formatTopicList(topics: string[]) {
+  const described = topics.map((topic) => {
+    if (topic === "value for money") return "value for money";
+    if (topic === "wait time") return "the wait";
+    if (topic === "work quality") return "the quality of the work";
+    return `the ${topic}`;
+  });
+  if (described.length < 2) return described[0] ?? "";
+  if (described.length === 2) return `${described[0]} and ${described[1]}`;
+  return `${described.slice(0, -1).join(", ")}, and ${described.at(-1)}`;
+}
 function toneForAnswer(value: string): Tone | null {
   const normalized = value.trim().toLowerCase();
   if (["excellent", "outstanding", "exceptional"].includes(normalized)) return "excellent";
@@ -163,8 +208,9 @@ function sentenceForRating(focus: string, value: string, used: Set<string>) {
   return chooseUnused(candidates, used);
 }
 function capitalize(value: string) { return value ? value[0].toUpperCase() + value.slice(1) : value; }
-function openingFor(name: string, value: string, used: Set<string>) {
+function openingFor(name: string, value: string, used: Set<string>, topics: string[] = []) {
   const phrases = ratingPhrases[toneForAnswer(value) ?? "average"];
+  const topicList = formatTopicList(topics);
   const candidates = [
     ...phrases.experiences.map((phrase) => `I had ${phrase} at ${name}.`),
     ...phrases.adjectives.flatMap((phrase) => [
@@ -177,6 +223,11 @@ function openingFor(name: string, value: string, used: Set<string>) {
     ...phrases.takeaways.map((phrase) => `${name} left me with ${phrase}.`),
     ...phrases.observations.map((phrase) => `The experience at ${name} ${phrase}.`),
     ...phrases.reactions.map((phrase) => `I was ${phrase} after my visit to ${name}.`),
+    ...(topicList ? [
+      ...phrases.experiences.map((phrase) => `Considering ${topicList} together, I had ${phrase} at ${name}.`),
+      ...phrases.adjectives.map((phrase) => `Taking ${topicList} into account, my overall experience at ${name} was ${phrase}.`),
+      ...phrases.impressions.map((phrase) => `My overall impression of ${name}, considering ${topicList}, was ${phrase}.`),
+    ] : []),
   ];
   return chooseUnused(candidates, used);
 }
@@ -261,7 +312,7 @@ function composeReview(page: PublicPage, questions: Question[], answers: Answer[
   });
   const name = page.business.name.trim();
   const intro = primary
-    ? openingFor(name, primary.value, used)
+    ? openingFor(name, primary.value, used, answers.length === 1 ? topicsForBusiness(questions, primary.questionId) : [])
     : chooseUnused([
       `I recently visited ${name} and wanted to share a few thoughts.`, `I stopped by ${name} and have a few things to share.`,
       `Here are some thoughts from my visit to ${name}.`, `I wanted to share a little about my visit to ${name}.`,
