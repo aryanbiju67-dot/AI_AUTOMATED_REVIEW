@@ -97,32 +97,38 @@ function focusForQuestion(question: Question) {
   const words = text.toLowerCase().split(/\s+/).filter((word) => !stopWords.has(word));
   return words.slice(0, 3).join(" ") || "overall experience";
 }
+const topicMatchers: Array<[RegExp, string]> = [
+  [/\b(food|meal|dish|taste|flavou?r|menu|drink|coffee|momos?|cuisine|delicious|tasty|flavou?rful|spicy|crispy|pasta|pizza|burgers?|sandwich(?:es)?|noodles?|rice|soup|dessert|snacks?|bread|chicken|mutton|paneer|fries|salad)\b/, "food"],
+  [/\b(service|hospitality|customer service|support)\b/, "service"],
+  [/\b(staff|team|employees?|personnel|people|server|waiter|waitress|stylist|barber|trainer|coach|instructors?|mechanic|technician|doctor)\b/, "staff"],
+  [/\b(cleanliness|clean|hygiene|sanitation)\b/, "cleanliness"],
+  [/\b(ambience|ambiance|environment|atmosphere|decor|seating)\b/, "atmosphere"],
+  [/\b(pricing|price|cost|value for money|affordability|affordable|expensive|overpriced|cheap|inexpensive|rates?|fees?|bill|billing)\b/, "value for money"],
+  [/\b(waiting time|wait time|wait|speed|delivery time)\b/, "wait time"],
+  [/\b(equipments?|machines?|gym gear|apparatus|treadmills?|dumbbells?|weights?|exercise bikes?|ellipticals?|barbells?|kettlebells?|rowing machines?|stationary bikes?|benches|racks)\b/, "equipment"],
+  [/\b(facilities|facility|amenities|premises|pool|court)\b/, "facilities"],
+  [/\b(products?|items?|selection|product quality|stock|range)\b/, "products"],
+  [/\b(location|parking|access|area)\b/, "location"],
+  [/\b(appointment|booking|reservation|schedule)\b/, "booking"],
+  [/\b(care|treatment|consultation|diagnosis)\b/, "care"],
+  [/\b(repair|workmanship|maintenance|installation)\b/, "work quality"],
+  [/\b(communication|response|information)\b/, "communication"],
+];
+function knownTopicsInText(text: string) {
+  return [...new Set(topicMatchers.filter(([pattern]) => pattern.test(text.toLowerCase())).map(([, topic]) => topic))];
+}
 function topicsForQuestion(question: Question) {
-  const text = question.text.toLowerCase();
-  const topicMatchers: Array<[RegExp, string]> = [
-    [/\b(food|meal|dish|taste|flavou?r|menu|drink|coffee|momos?)\b/, "food"],
-    [/\b(service|hospitality|customer service|support)\b/, "service"],
-    [/\b(staff|team|employees?|server|waiter|waitress|stylist|barber|trainer|coach|instructors?|mechanic|technician|doctor)\b/, "staff"],
-    [/\b(cleanliness|clean|hygiene|sanitation)\b/, "cleanliness"],
-    [/\b(ambience|ambiance|environment|atmosphere|decor|seating)\b/, "atmosphere"],
-    [/\b(pricing|price|cost|value for money|affordability)\b/, "value for money"],
-    [/\b(waiting time|wait time|wait|speed|delivery time)\b/, "wait time"],
-    [/\b(equipments?|machines?|gym gear|apparatus)\b/, "equipment"],
-    [/\b(facilities|facility|amenities|premises|pool|court)\b/, "facilities"],
-    [/\b(products?|items?|selection|product quality|stock|range)\b/, "products"],
-    [/\b(location|parking|access|area)\b/, "location"],
-    [/\b(appointment|booking|reservation|schedule)\b/, "booking"],
-    [/\b(care|treatment|consultation|diagnosis)\b/, "care"],
-    [/\b(repair|workmanship|maintenance|installation)\b/, "work quality"],
-    [/\b(communication|response|information)\b/, "communication"],
-  ];
-  const found = topicMatchers.filter(([pattern]) => pattern.test(text)).map(([, topic]) => topic);
+  const found = knownTopicsInText(question.text);
   if (found.length) return [...new Set(found)];
 
   const fallback = focusForQuestion(question).toLowerCase();
   if (["general", "recommend", "recommendation", "experience", "overall experience", "visit", "stood out", "stand out"].includes(fallback)
     || /\b(visit|experience|overall|stood out|stand out|favorite part|highlight)\b/.test(fallback)) return [];
   return [fallback];
+}
+function topicsForTextAnswer(question: Question, answer: string) {
+  const explicitTopics = knownTopicsInText(answer);
+  return explicitTopics.length ? explicitTopics : topicsForQuestion(question);
 }
 function topicsForBusiness(questions: Question[], primaryQuestionId: string) {
   return [...new Set(questions.filter((question) => question.id !== primaryQuestionId).flatMap(topicsForQuestion))];
@@ -252,22 +258,8 @@ function sentenceForText(value: string, used: Set<string>) {
   const text = value.replace(/[\r\n]+/g, " ").replace(/\s+/g, " ").trim();
   if (!text) return "";
   const normalized = text[0].toUpperCase() + text.slice(1);
-  const sentence = /[.!?]$/.test(normalized) ? normalized : `${normalized}.`;
-  const wrappers = [
-    sentence,
-    `One thing I wanted to mention: ${sentence}`,
-    `A detail I remember is this: ${sentence}`,
-    `I also noticed this: ${sentence}`,
-    `I would put it this way: ${sentence}`,
-    `To add a little detail: ${sentence}`,
-    `One detail from my visit: ${sentence}`,
-    `What stood out to me was this: ${sentence}`,
-    `Another part I remember: ${sentence}`,
-    `My note from the visit: ${sentence}`,
-    `This is one thing I took away: ${sentence}`,
-    `I wanted to add: ${sentence}`,
-  ];
-  return chooseUnused(wrappers, used);
+  used.add(normalized);
+  return /[.!?]$/.test(normalized) ? normalized : `${normalized}.`;
 }
 function sentenceForAnswer(question: Question, value: string, used: Set<string>) {
   const field = fieldForQuestion(question);
@@ -313,7 +305,21 @@ function composeReview(page: PublicPage, questions: Question[], answers: Answer[
     return question?.required && question.answer_type === "rating" && fieldForQuestion(question) === "experience";
   });
   const name = page.business.name.trim();
-  const otherAnswers = answers.filter((answer) => answer !== primary && answer.value.trim().toLowerCase() !== "not applicable");
+  const textAnswers = answers.filter((answer) => {
+    const question = questions.find((item) => item.id === answer.questionId);
+    return question?.answer_type === "text";
+  });
+  const textTopics = new Set(textAnswers.flatMap((answer) => {
+    const question = questions.find((item) => item.id === answer.questionId);
+    return question ? topicsForTextAnswer(question, answer.value) : [];
+  }));
+  const isCoveredByText = (question: Question) => topicsForQuestion(question).some((topic) => textTopics.has(topic));
+  const otherAnswers = answers.filter((answer) => {
+    if (answer === primary || answer.value.trim().toLowerCase() === "not applicable") return false;
+    const question = questions.find((item) => item.id === answer.questionId);
+    if (!question || question.answer_type === "text") return true;
+    return !isCoveredByText(question);
+  });
   if (primary && otherAnswers.length === 1) {
     const question = questions.find((item) => item.id === otherAnswers[0].questionId);
     if (question && question.answer_type !== "text") {
@@ -323,10 +329,12 @@ function composeReview(page: PublicPage, questions: Question[], answers: Answer[
   }
 
   const topics = primary
-    ? topicsForBusiness(questions, primary.questionId).filter((topic) => otherAnswers.length === 0 || otherAnswers.some((answer) => {
+    ? otherAnswers.length === 0
+      ? topicsForBusiness(questions, primary.questionId)
+      : [...new Set(otherAnswers.flatMap((answer) => {
       const question = questions.find((item) => item.id === answer.questionId);
-      return question ? topicsForQuestion(question).includes(topic) : false;
-    }))
+      return question && question.answer_type !== "text" ? topicsForQuestion(question) : [];
+    }))]
     : [];
   const intro = primary
     ? openingFor(name, primary.value, used, topics)
@@ -340,6 +348,7 @@ function composeReview(page: PublicPage, questions: Question[], answers: Answer[
     const answer = answerByQuestion.get(question.id);
     if (!answer || answer === primary) continue;
     if (answer.value.trim().toLowerCase() === "not applicable") continue;
+    if (question.answer_type !== "text" && isCoveredByText(question)) continue;
     const sentence = question.answer_type === "text"
       ? sentenceForText(answer.value, used)
       : sentenceForAnswer(question, answer.value, used);
