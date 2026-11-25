@@ -111,82 +111,74 @@ function chooseUnused(pool: string[], used: Set<string>) {
   used.add(phrase);
   return phrase;
 }
+type RatingPhrases = { adjectives: string[]; impressions: string[]; feelings: string[]; takeaways: string[]; observations: string[]; experiences: string[]; reactions: string[] };
+const ratingPhrases: Record<Tone, RatingPhrases> = {
+  excellent: {
+    adjectives: ["excellent", "exceptionally enjoyable", "genuinely impressive", "remarkably satisfying", "very pleasant", "delightful", "better than I expected", "memorable", "refreshingly good", "thoroughly enjoyable", "worth remembering", "especially rewarding", "truly outstanding", "remarkably positive", "very satisfying", "wonderfully pleasant"],
+    impressions: ["extremely positive", "stronger than I expected", "excellent overall", "very favorable", "distinctly positive", "impressive", "memorable for all the right reasons", "better than I had hoped", "exceptionally good", "one of the highlights", "really satisfying", "warm and positive"],
+    feelings: ["very positive", "genuinely pleased", "thoroughly satisfied", "delighted", "impressed", "happy", "enthusiastic", "content", "glad to have visited", "great about my choice", "very satisfied with how it went", "pleasantly surprised"],
+    takeaways: ["a very positive impression", "a strong sense of satisfaction", "a memorable overall impression", "a genuinely good feeling about my visit", "the sense that everything had gone exceptionally well", "a lot to appreciate", "a particularly favorable view", "a great memory of the experience", "a lasting positive impression", "nothing but good thoughts about my visit"],
+    observations: ["stood out in the best way", "made a particularly good impression", "was a real highlight of my visit", "was among the strongest parts of the experience", "went beyond what I had expected", "left me feeling delighted", "was something I genuinely appreciated", "made the visit especially memorable", "was very well done", "earned my appreciation", "was a pleasure throughout", "was one of my favorite parts of the visit"],
+    experiences: ["a wonderful experience", "an excellent visit", "a genuinely enjoyable time", "a thoroughly positive experience", "an especially pleasant experience", "a memorable visit", "a great overall experience", "a lovely time", "an experience that exceeded my expectations", "a very satisfying visit", "an impressive visit", "a refreshingly good experience", "a standout experience", "a really enjoyable visit", "an experience I appreciated", "a thoroughly enjoyable visit"],
+    reactions: ["really impressed", "genuinely pleased", "thoroughly satisfied", "delighted", "happy", "pleasantly surprised", "glad", "in a very positive mood"],
+  },
+  positive: {
+    adjectives: ["good", "really enjoyable", "quite pleasant", "satisfying", "better than I expected", "positive overall", "quite memorable", "pleasing", "nice", "impressive", "moderately enjoyable", "worthwhile", "comfortably above average", "very good", "better than average", "genuinely enjoyable"],
+    impressions: ["quite positive", "generally favorable", "good overall", "better than I expected", "pleasant", "strong", "solid", "a little above average", "encouraging", "largely positive", "good from start to finish", "better than I had assumed"],
+    feelings: ["positive", "pleased", "satisfied", "happy", "comfortable", "glad I visited", "pretty good", "appreciative", "content with how it went", "good about my choice", "more than satisfied", "in a good mood afterward"],
+    takeaways: ["a good impression", "a pleasant memory", "a sense of satisfaction", "some positive thoughts about my visit", "the feeling that things had gone well", "a favorable view overall", "a nice impression to take away", "a good feeling about the experience", "plenty to appreciate", "a positive overall impression"],
+    observations: ["left a good impression on me", "stood out for the right reasons", "was one of the better parts of my visit", "made the experience more enjoyable", "met my expectations", "was something I appreciated", "was handled well", "was a strong point of the visit", "was enjoyable overall", "made a positive difference", "was easy to feel good about", "left me satisfied"],
+    experiences: ["a good experience", "a pleasant visit", "a really nice time", "a positive experience overall", "an enjoyable experience", "a satisfying experience", "a good time", "an enjoyable visit", "a nice experience", "a good visit overall", "a worthwhile experience", "a fairly memorable visit", "a welcome experience", "a solid visit overall", "a good experience from start to finish", "a generally pleasant visit"],
+    reactions: ["pleased", "happy", "satisfied", "glad", "impressed", "in a positive mood", "content", "comfortable with how it went"],
+  },
+  average: {
+    adjectives: ["fairly ordinary", "okay overall", "about what I expected", "neither especially good nor bad", "acceptable", "fine, though not memorable", "middle-of-the-road", "decent enough", "unremarkable", "average", "not bad, but not outstanding", "somewhat mixed", "reasonable", "ordinary", "fair", "just all right"],
+    impressions: ["mixed", "fairly neutral", "somewhere in the middle", "about what I expected", "neither strongly positive nor negative", "acceptable overall", "not especially memorable", "ordinary", "moderate", "okay, but not outstanding", "hard to sum up as either great or bad", "pretty average"],
+    feelings: ["mixed", "fairly neutral", "neither impressed nor disappointed", "okay about it", "somewhat undecided", "fine with how it went", "neither especially happy nor unhappy", "mostly indifferent", "on the fence", "moderately satisfied", "unsure what to make of it", "all right overall"],
+    takeaways: ["mixed feelings", "a fairly neutral impression", "no particularly strong opinion", "the sense that it was fine overall", "a middle-of-the-road feeling", "an experience that was okay but not memorable", "some good and some ordinary moments", "an impression that was neither very good nor very bad", "a reasonable experience", "a generally average impression"],
+    observations: ["was fine overall", "did not particularly stand out", "was about what I expected", "was neither a highlight nor a problem", "was okay without being memorable", "met the basic expectation", "felt ordinary to me", "was somewhere in the middle", "didn't leave a strong impression", "was acceptable overall", "was all right, though not remarkable", "could have been more memorable"],
+    experiences: ["an average experience", "a fairly typical visit", "a mostly okay experience", "a middle-of-the-road visit", "an experience that was fine overall", "a visit that was not especially memorable", "a reasonable experience", "an ordinary visit", "a mixed experience", "an all-right visit", "an acceptable experience", "a visit that met basic expectations", "a fairly standard experience", "an experience that felt ordinary", "a decent experience", "an okay visit"],
+    reactions: ["neither impressed nor disappointed", "fairly neutral about it", "a little undecided", "okay with how it went", "on the fence", "not especially moved either way", "moderately satisfied", "left with mixed feelings"],
+  },
+  negative: {
+    adjectives: ["disappointing", "underwhelming", "less satisfying than I hoped", "not what I expected", "hard to enjoy", "below what I expected", "frustrating", "not very impressive", "in need of improvement", "less than satisfactory", "unpleasant", "not particularly enjoyable", "more difficult than it needed to be", "not up to the mark", "far from ideal", "worse than expected"],
+    impressions: ["less favorable than I had hoped", "disappointing overall", "quite negative", "not very good", "below expectations", "underwhelming", "hard to recommend", "worse than I expected", "not especially positive", "frustrating", "a letdown", "in need of improvement"],
+    feelings: ["disappointed", "let down", "frustrated", "underwhelmed", "unsatisfied", "unhappy with how it went", "less than impressed", "not very positive", "rather dissatisfied", "concerned", "discouraged", "regretful about the experience"],
+    takeaways: ["a poor impression", "some disappointment", "the feeling that I had expected more", "a less favorable view", "mixed feelings, leaning negative", "a sense that things could have gone better", "an experience I found frustrating", "a disappointing overall impression", "more concerns than positives", "a visit that left me wanting more"],
+    observations: ["fell short of what I hoped for", "didn't meet my expectations", "was disappointing", "could have been better", "was the weakest part of my visit", "left me wanting more", "didn't make a good impression", "was not very satisfying", "made the visit less enjoyable", "wasn't what I had hoped for", "needs room for improvement", "was more frustrating than it needed to be"],
+    experiences: ["a disappointing experience", "a less satisfying visit", "a less-than-satisfying experience", "a frustrating visit", "an experience that could have gone better", "an underwhelming visit", "a difficult experience", "a visit that did not meet my expectations", "a disappointing experience overall", "an experience I found disappointing", "a visit that I hoped would go better", "a less enjoyable visit", "an unsatisfying experience", "a disappointing visit overall", "a frustrating experience overall", "a visit that could use improvement"],
+    reactions: ["disappointed", "let down", "frustrated", "underwhelmed", "less than impressed", "unhappy", "unsatisfied", "rather dissatisfied"],
+  },
+};
 function sentenceForRating(focus: string, value: string, used: Set<string>) {
+  const phrases = ratingPhrases[toneForAnswer(value) ?? "average"];
   const subject = `the ${focus}`;
-  const pools: Record<Tone, string[]> = {
-    excellent: [
-      `I was especially impressed by ${subject}.`, `${capitalize(focus)} was a real highlight of my visit.`,
-      `I particularly enjoyed ${subject}.`, `The ${focus} exceeded what I expected.`,
-      `I came away really pleased with ${subject}.`, `I couldn't have asked for more from ${subject}.`,
-      `One of the best parts of my visit was ${subject}.`, `I thought ${subject} was outstanding.`,
-      `${capitalize(focus)} made a great impression on me.`, `I left with a very positive impression of ${subject}.`,
-      `I was genuinely impressed with ${subject}.`, `I enjoyed every part of ${subject}.`,
-    ],
-    positive: [
-      `I really liked ${subject}.`, `I was happy with ${subject}.`, `${capitalize(focus)} stood out in a good way.`,
-      `I had a good experience with ${subject}.`, `I enjoyed ${subject}.`, `I appreciated ${subject}.`,
-      `${capitalize(focus)} left a good impression on me.`, `I came away pleased with ${subject}.`,
-      `I thought ${subject} was handled well.`, `I was glad to see ${subject} done well.`,
-      `I found ${subject} enjoyable.`, `I was satisfied with ${subject}.`,
-    ],
-    average: [
-      `My experience with ${subject} was fairly ordinary.`, `${capitalize(focus)} was okay overall, though nothing especially stood out.`,
-      `I had mixed feelings about ${subject}.`, `${capitalize(focus)} was fine, but not particularly memorable.`,
-      `I thought ${subject} was acceptable.`, `There was nothing especially remarkable about ${subject}.`,
-      `${capitalize(focus)} met the basic expectation, but didn't stand out.`, `I found ${subject} just average overall.`,
-      `It was an alright experience with ${subject}.`, `${capitalize(focus)} was neither a highlight nor a major issue for me.`,
-      `I was reasonably okay with ${subject}.`, `My impression of ${subject} was somewhere in the middle.`,
-    ],
-    negative: [
-      `I was disappointed with ${subject}.`, `${capitalize(focus)} fell short of what I hoped for.`,
-      `${capitalize(focus)} could have been better.`, `I wasn't very satisfied with ${subject}.`,
-      `I expected more from ${subject}.`, `${capitalize(focus)} was the weakest part of my visit.`,
-      `I left wishing ${subject} had been better.`, `I didn't have a good experience with ${subject}.`,
-      `Unfortunately, ${subject} let me down.`, `${capitalize(focus)} didn't meet my expectations.`,
-      `I found ${subject} disappointing.`, `There is room for improvement in ${focus}.`,
-    ],
-  };
-  const tone = toneForAnswer(value) ?? "average";
-  return chooseUnused(pools[tone], used);
+  const candidates = [
+    ...phrases.adjectives.flatMap((phrase) => [`I found ${subject} ${phrase}.`, `For me, ${subject} was ${phrase}.`, `I would describe ${subject} as ${phrase}.`]),
+    ...phrases.impressions.map((phrase) => `My impression of ${subject} was ${phrase}.`),
+    ...phrases.feelings.flatMap((phrase) => [`I left feeling ${phrase}.`, `The experience left me feeling ${phrase}.`]),
+    ...phrases.takeaways.map((phrase) => `I came away with ${phrase}.`),
+    ...phrases.observations.map((phrase) => `${capitalize(subject)} ${phrase}.`),
+  ];
+  return chooseUnused(candidates, used);
 }
 function capitalize(value: string) { return value ? value[0].toUpperCase() + value.slice(1) : value; }
 function openingFor(name: string, value: string, used: Set<string>) {
-  const tone = toneForAnswer(value) ?? "average";
-  const pools: Record<Tone, string[]> = {
-    excellent: [
-      `I had an excellent overall experience at ${name}.`, `I really enjoyed my visit to ${name}.`,
-      `My visit to ${name} was a great one.`, `I had a wonderful time at ${name}.`,
-      `${name} made a very positive impression on me.`, `I left ${name} feeling very pleased with my visit.`,
-      `I had a thoroughly enjoyable visit to ${name}.`, `My experience at ${name} was excellent from start to finish.`,
-      `I was really impressed by my visit to ${name}.`, `I would gladly visit ${name} again.`,
-      `I had a lovely experience at ${name}.`, `Visiting ${name} was a real pleasure.`,
-    ],
-    positive: [
-      `I had a good experience at ${name}.`, `I enjoyed my visit to ${name}.`,
-      `I had a nice time at ${name}.`, `My visit to ${name} went well.`,
-      `${name} left me with a positive impression.`, `I was pleased with my visit to ${name}.`,
-      `I had a pleasant experience at ${name}.`, `It was nice spending time at ${name}.`,
-      `I came away happy with my visit to ${name}.`, `Overall, I enjoyed being at ${name}.`,
-      `My time at ${name} was enjoyable.`, `I was glad I stopped by ${name}.`,
-    ],
-    average: [
-      `My visit to ${name} was alright overall.`, `I had an average experience at ${name}.`,
-      `My experience at ${name} was mixed.`, `I thought my visit to ${name} was okay.`,
-      `My time at ${name} was fairly ordinary.`, `Overall, my visit to ${name} was fine, though not memorable.`,
-      `I had a middle-of-the-road experience at ${name}.`, `My visit to ${name} was neither great nor terrible.`,
-      `${name} was okay for a visit, but didn't really stand out to me.`, `I left with mixed feelings about ${name}.`,
-      `My experience at ${name} was decent overall.`, `I found my visit to ${name} acceptable.`,
-    ],
-    negative: [
-      `I was disappointed with my visit to ${name}.`, `My experience at ${name} fell short of what I expected.`,
-      `Unfortunately, my visit to ${name} wasn't a great one.`, `I left ${name} feeling let down.`,
-      `My visit to ${name} could have gone better.`, `I didn't enjoy my experience at ${name} as much as I hoped.`,
-      `I had a frustrating visit to ${name}.`, `My time at ${name} was disappointing overall.`,
-      `I expected a better experience at ${name}.`, `I left ${name} wishing the visit had gone differently.`,
-      `My experience at ${name} wasn't what I had hoped for.`, `I can't say my visit to ${name} was satisfying.`,
-    ],
-  };
-  return chooseUnused(pools[tone], used);
+  const phrases = ratingPhrases[toneForAnswer(value) ?? "average"];
+  const candidates = [
+    ...phrases.experiences.map((phrase) => `I had ${phrase} at ${name}.`),
+    ...phrases.adjectives.flatMap((phrase) => [
+      `My visit to ${name} was ${phrase}.`,
+      `I found my visit to ${name} ${phrase}.`,
+      `I would describe my visit to ${name} as ${phrase}.`,
+    ]),
+    ...phrases.feelings.map((phrase) => `I left ${name} feeling ${phrase}.`),
+    ...phrases.impressions.map((phrase) => `My overall impression of ${name} was ${phrase}.`),
+    ...phrases.takeaways.map((phrase) => `${name} left me with ${phrase}.`),
+    ...phrases.observations.map((phrase) => `The experience at ${name} ${phrase}.`),
+    ...phrases.reactions.map((phrase) => `I was ${phrase} after my visit to ${name}.`),
+  ];
+  return chooseUnused(candidates, used);
 }
 function sentencesForChoice(question: Question, answer: string, used: Set<string>) {
   const focus = focusForQuestion(question);
@@ -197,6 +189,9 @@ function sentencesForChoice(question: Question, answer: string, used: Set<string
     `I chose ${normalized} for ${focus}.`, `For ${focus}, I went with ${normalized}.`,
     `${normalized} was my choice for ${focus}.`, `When it came to ${focus}, I picked ${normalized}.`,
     `I decided on ${normalized} for ${focus}.`, `I went with ${normalized} when choosing ${focus}.`,
+    `My answer for ${focus} was ${normalized}.`, `For ${focus}, my answer was ${normalized}.`,
+    `The option I selected for ${focus} was ${normalized}.`, `${normalized} is what I chose for ${focus}.`,
+    `I selected ${normalized} in response to the question about ${focus}.`, `As for ${focus}, ${normalized} was my pick.`,
   ];
   return chooseUnused(pools, used);
 }
@@ -205,7 +200,20 @@ function sentenceForText(value: string, used: Set<string>) {
   if (!text) return "";
   const normalized = text[0].toUpperCase() + text.slice(1);
   const sentence = /[.!?]$/.test(normalized) ? normalized : `${normalized}.`;
-  const wrappers = [sentence, `One thing I wanted to mention: ${sentence}`, `A detail I remember is this: ${sentence}`, `I also noticed this: ${sentence}`];
+  const wrappers = [
+    sentence,
+    `One thing I wanted to mention: ${sentence}`,
+    `A detail I remember is this: ${sentence}`,
+    `I also noticed this: ${sentence}`,
+    `I would put it this way: ${sentence}`,
+    `To add a little detail: ${sentence}`,
+    `One detail from my visit: ${sentence}`,
+    `What stood out to me was this: ${sentence}`,
+    `Another part I remember: ${sentence}`,
+    `My note from the visit: ${sentence}`,
+    `This is one thing I took away: ${sentence}`,
+    `I wanted to add: ${sentence}`,
+  ];
   return chooseUnused(wrappers, used);
 }
 function sentenceForAnswer(question: Question, value: string, used: Set<string>) {
