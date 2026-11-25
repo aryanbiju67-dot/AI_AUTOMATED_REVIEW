@@ -102,12 +102,12 @@ function topicsForQuestion(question: Question) {
   const topicMatchers: Array<[RegExp, string]> = [
     [/\b(food|meal|dish|taste|flavou?r|menu|drink|coffee|momos?)\b/, "food"],
     [/\b(service|hospitality|customer service|support)\b/, "service"],
-    [/\b(staff|team|employees?|server|waiter|waitress|stylist|barber|trainer|coach|instructor|mechanic|technician|doctor)\b/, "staff"],
+    [/\b(staff|team|employees?|server|waiter|waitress|stylist|barber|trainer|coach|instructors?|mechanic|technician|doctor)\b/, "staff"],
     [/\b(cleanliness|clean|hygiene|sanitation)\b/, "cleanliness"],
     [/\b(ambience|ambiance|environment|atmosphere|decor|seating)\b/, "atmosphere"],
     [/\b(pricing|price|cost|value for money|affordability)\b/, "value for money"],
     [/\b(waiting time|wait time|wait|speed|delivery time)\b/, "wait time"],
-    [/\b(equipment|machines?|gym gear|apparatus)\b/, "equipment"],
+    [/\b(equipments?|machines?|gym gear|apparatus)\b/, "equipment"],
     [/\b(facilities|facility|amenities|premises|pool|court)\b/, "facilities"],
     [/\b(products?|items?|selection|product quality|stock|range)\b/, "products"],
     [/\b(location|parking|access|area)\b/, "location"],
@@ -120,16 +120,12 @@ function topicsForQuestion(question: Question) {
   if (found.length) return [...new Set(found)];
 
   const fallback = focusForQuestion(question).toLowerCase();
-  if (["general", "recommend", "recommendation", "experience", "overall experience", "visit", "stood out", "stand out"].includes(fallback)) return [];
+  if (["general", "recommend", "recommendation", "experience", "overall experience", "visit", "stood out", "stand out"].includes(fallback)
+    || /\b(visit|experience|overall|stood out|stand out|favorite part|highlight)\b/.test(fallback)) return [];
   return [fallback];
 }
 function topicsForBusiness(questions: Question[], primaryQuestionId: string) {
-  const topics = [...new Set(questions.filter((question) => question.id !== primaryQuestionId).flatMap(topicsForQuestion))];
-  for (let index = topics.length - 1; index > 0; index--) {
-    const swapIndex = Math.floor(Math.random() * (index + 1));
-    [topics[index], topics[swapIndex]] = [topics[swapIndex], topics[index]];
-  }
-  return topics.slice(0, 3);
+  return [...new Set(questions.filter((question) => question.id !== primaryQuestionId).flatMap(topicsForQuestion))];
 }
 function formatTopicList(topics: string[]) {
   const described = topics.map((topic) => {
@@ -211,7 +207,12 @@ function capitalize(value: string) { return value ? value[0].toUpperCase() + val
 function openingFor(name: string, value: string, used: Set<string>, topics: string[] = []) {
   const phrases = ratingPhrases[toneForAnswer(value) ?? "average"];
   const topicList = formatTopicList(topics);
-  const candidates = [
+  const contextualCandidates = topicList ? [
+      ...phrases.experiences.map((phrase) => `Considering ${topicList} together, I had ${phrase} at ${name}.`),
+      ...phrases.adjectives.map((phrase) => `Taking ${topicList} into account, my overall experience at ${name} was ${phrase}.`),
+      ...phrases.adjectives.map((phrase) => `My overall experience at ${name}, considering ${topicList}, was ${phrase}.`),
+    ] : [];
+  const generalCandidates = [
     ...phrases.experiences.map((phrase) => `I had ${phrase} at ${name}.`),
     ...phrases.adjectives.flatMap((phrase) => [
       `My visit to ${name} was ${phrase}.`,
@@ -223,13 +224,8 @@ function openingFor(name: string, value: string, used: Set<string>, topics: stri
     ...phrases.takeaways.map((phrase) => `${name} left me with ${phrase}.`),
     ...phrases.observations.map((phrase) => `The experience at ${name} ${phrase}.`),
     ...phrases.reactions.map((phrase) => `I was ${phrase} after my visit to ${name}.`),
-    ...(topicList ? [
-      ...phrases.experiences.map((phrase) => `Considering ${topicList} together, I had ${phrase} at ${name}.`),
-      ...phrases.adjectives.map((phrase) => `Taking ${topicList} into account, my overall experience at ${name} was ${phrase}.`),
-      ...phrases.impressions.map((phrase) => `My overall impression of ${name}, considering ${topicList}, was ${phrase}.`),
-    ] : []),
   ];
-  return chooseUnused(candidates, used);
+  return chooseUnused(contextualCandidates.length ? contextualCandidates : generalCandidates, used);
 }
 function sentencesForChoice(question: Question, answer: string, used: Set<string>) {
   const focus = focusForQuestion(question);
@@ -312,7 +308,7 @@ function composeReview(page: PublicPage, questions: Question[], answers: Answer[
   });
   const name = page.business.name.trim();
   const intro = primary
-    ? openingFor(name, primary.value, used, answers.length === 1 ? topicsForBusiness(questions, primary.questionId) : [])
+    ? openingFor(name, primary.value, used, topicsForBusiness(questions, primary.questionId))
     : chooseUnused([
       `I recently visited ${name} and wanted to share a few thoughts.`, `I stopped by ${name} and have a few things to share.`,
       `Here are some thoughts from my visit to ${name}.`, `I wanted to share a little about my visit to ${name}.`,
