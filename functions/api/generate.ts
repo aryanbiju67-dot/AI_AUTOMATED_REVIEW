@@ -155,7 +155,7 @@ function chooseUnused(pool: string[], used: Set<string>) {
 type RatingPhrases = { adjectives: string[]; impressions: string[]; feelings: string[]; takeaways: string[]; observations: string[]; experiences: string[]; reactions: string[] };
 const ratingPhrases: Record<Tone, RatingPhrases> = {
   excellent: {
-    adjectives: ["excellent", "exceptionally enjoyable", "genuinely impressive", "remarkably satisfying", "very pleasant", "delightful", "better than I expected", "memorable", "refreshingly good", "thoroughly enjoyable", "worth remembering", "especially rewarding", "truly outstanding", "remarkably positive", "very satisfying", "wonderfully pleasant"],
+    adjectives: ["excellent", "incredible", "exceptionally enjoyable", "genuinely impressive", "remarkably satisfying", "very pleasant", "delightful", "better than I expected", "memorable", "refreshingly good", "thoroughly enjoyable", "worth remembering", "especially rewarding", "truly outstanding", "remarkably positive", "very satisfying", "wonderfully pleasant"],
     impressions: ["extremely positive", "stronger than I expected", "excellent overall", "very favorable", "distinctly positive", "impressive", "memorable for all the right reasons", "better than I had hoped", "exceptionally good", "one of the highlights", "really satisfying", "warm and positive"],
     feelings: ["very positive", "genuinely pleased", "thoroughly satisfied", "delighted", "impressed", "happy", "enthusiastic", "content", "glad to have visited", "great about my choice", "very satisfied with how it went", "pleasantly surprised"],
     takeaways: ["a very positive impression", "a strong sense of satisfaction", "a memorable overall impression", "a genuinely good feeling about my visit", "the sense that everything had gone exceptionally well", "a lot to appreciate", "a particularly favorable view", "a great memory of the experience", "a lasting positive impression", "nothing but good thoughts about my visit"],
@@ -196,14 +196,20 @@ function sentenceForRating(focus: string, value: string, used: Set<string>) {
   const subject = `the ${focus}`;
   const candidates = [
     ...phrases.adjectives.flatMap((phrase) => [`I found ${subject} ${phrase}.`, `For me, ${subject} was ${phrase}.`, `I would describe ${subject} as ${phrase}.`]),
-    ...phrases.impressions.map((phrase) => `My impression of ${subject} was ${phrase}.`),
-    ...phrases.feelings.flatMap((phrase) => [`I left feeling ${phrase}.`, `The experience left me feeling ${phrase}.`]),
-    ...phrases.takeaways.map((phrase) => `I came away with ${phrase}.`),
-    ...phrases.observations.map((phrase) => `${capitalize(subject)} ${phrase}.`),
   ];
   return chooseUnused(candidates, used);
 }
-function capitalize(value: string) { return value ? value[0].toUpperCase() + value.slice(1) : value; }
+function asContinuation(sentence: string) {
+  const clause = sentence.trim().replace(/[.!?]+$/, "");
+  return /^I\b/.test(clause) ? clause : `${clause[0]?.toLowerCase() ?? ""}${clause.slice(1)}`;
+}
+function overallLeadFor(name: string, value: string, used: Set<string>) {
+  const phrases = ratingPhrases[toneForAnswer(value) ?? "average"];
+  return chooseUnused([
+    ...phrases.adjectives.map((phrase) => `My overall experience at ${name} was ${phrase}`),
+    ...phrases.experiences.map((phrase) => `Overall, I had ${phrase} at ${name}`),
+  ], used);
+}
 function openingFor(name: string, value: string, used: Set<string>, topics: string[] = []) {
   const phrases = ratingPhrases[toneForAnswer(value) ?? "average"];
   const topicList = formatTopicList(topics);
@@ -307,8 +313,23 @@ function composeReview(page: PublicPage, questions: Question[], answers: Answer[
     return question?.required && question.answer_type === "rating" && fieldForQuestion(question) === "experience";
   });
   const name = page.business.name.trim();
+  const otherAnswers = answers.filter((answer) => answer !== primary && answer.value.trim().toLowerCase() !== "not applicable");
+  if (primary && otherAnswers.length === 1) {
+    const question = questions.find((item) => item.id === otherAnswers[0].questionId);
+    if (question && question.answer_type !== "text") {
+      const detail = sentenceForAnswer(question, otherAnswers[0].value, used);
+      return `${overallLeadFor(name, primary.value, used)}, and ${asContinuation(detail)}.`.slice(0, 6000);
+    }
+  }
+
+  const topics = primary
+    ? topicsForBusiness(questions, primary.questionId).filter((topic) => otherAnswers.length === 0 || otherAnswers.some((answer) => {
+      const question = questions.find((item) => item.id === answer.questionId);
+      return question ? topicsForQuestion(question).includes(topic) : false;
+    }))
+    : [];
   const intro = primary
-    ? openingFor(name, primary.value, used, topicsForBusiness(questions, primary.questionId))
+    ? openingFor(name, primary.value, used, topics)
     : chooseUnused([
       `I recently visited ${name} and wanted to share a few thoughts.`, `I stopped by ${name} and have a few things to share.`,
       `Here are some thoughts from my visit to ${name}.`, `I wanted to share a little about my visit to ${name}.`,
